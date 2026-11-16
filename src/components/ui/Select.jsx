@@ -1,12 +1,12 @@
 import { useId } from 'react'
-import { fieldClass } from './Input'
+import { fieldClass, labelClass } from './Input'
 
-export default function Select({ label, options, placeholder, className = '', ...props }) {
+export default function Select({ label, hint, options, placeholder, className = '', ...props }) {
   const id = useId()
   return (
     <div className={className}>
       {label && (
-        <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor={id} className={labelClass}>
           {label}
         </label>
       )}
@@ -18,6 +18,7 @@ export default function Select({ label, options, placeholder, className = '', ..
           </option>
         ))}
       </select>
+      {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
     </div>
   )
 }

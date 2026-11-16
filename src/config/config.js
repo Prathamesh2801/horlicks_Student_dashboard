@@ -4,6 +4,8 @@ export const config = {
   useMock: true,
   apiUrl: 'http://localhost:4000/api',
   appName: 'My Workbench',
+  // Schools in the programme, for the "x% of 6,000" coverage figure.
+  totalSchools: 6000,
   // Mock AI delay before a headcount comes back (ms)
   mockAiDelay: 3000,
 }

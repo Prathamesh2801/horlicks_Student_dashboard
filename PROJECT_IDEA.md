@@ -1,7 +1,7 @@
 # Odisha School Activity AI Dashboard: Project Idea
 
 > Status: **React frontend scaffolded** (runs on a built-in mock API; see §15). Backend API + AI face API not started. Awaiting client answers (§14) and the client's colours/assets.
-> Design (Penpot, made before the simplified flow of 2026-11-16, partly outdated): https://design.penpot.app/?screen=workspace&team-id=cc32ce3d-bd54-8151-8007-eabd223f5fb7&file-id=b55064db-d93d-80f9-8008-de1fcbfe1940
+> Design (Penpot, final UI v2, implemented 2026-11-16; PDF export in `design-export/`): https://design.penpot.app/?screen=workspace&team-id=cc32ce3d-bd54-8151-8007-eabd223f5fb7&file-id=b55064db-d93d-80f9-8008-de1fcbfe1940
 > Owners: Client (React) is mine. Server, APIs and AI belong to a colleague (or me, not decided yet).
 
 ---
@@ -57,10 +57,9 @@ Only **two roles**: `admin` and `staff`.
 | City | From list | Picked from the client's Excel list of cities (→ `src/data/cities.json` for now) |
 | School name | Text | Typed by staff |
 | Lat / long | GPS | Captured **automatically** when the visit starts and with every photo. The user cannot type it in |
-| Photos | ~10–18 | Each tagged as **Banner / Leaflet / Place / Headcount**. Native camera or upload from the device |
-| Headcount selection | Per photo | Staff ticks **"Count heads"** on the 5–6 photos that show students' faces |
-| AI count per photo | Number | From the AI face-detection API, only for ticked photos (**no manual count**) |
-| Visit headcount | Number | **Highest** count across the ticked photos (the same children appear in several photos, so not the sum) |
+| Photos | ~10–18 | Two groups: **Normal** (banner, leaflet, marketing, other activity) and **Headcount** (5–6 class photos). Native camera or upload from the device |
+| AI count per photo | Number | From the AI face-detection API, only for Headcount photos (**no manual count**) |
+| Visit headcount | Number | **Highest** count across the headcount photos (the same children appear in several photos, so not the sum) |
 | Status | Enum | `draft` (adding photos) → `processing` (AI counting) → `completed` |
 
 ---
@@ -76,17 +75,17 @@ One React app, one login. After sign-in each role is sent to its own area.
 ### 5.2 Staff: "My Workbench" (PWA, mobile-first)
 1. **My visits** (`/staff`): staff dashboard, list of own visits with status, photo count and AI count.
 2. **New visit** (`/staff/visits/new`): **Date**, **City** (from the Excel list), **School name**. GPS is captured here; the visit can't start without location.
-3. **Photos** (`/staff/visits/:id/photos`): pick a type (Banner / Leaflet / Place / Headcount), then **Take photo** (native camera) or **Upload**. Photos are compressed in the browser and uploaded straight away with GPS + time. Tick **"Count heads"** on the 5–6 face photos (Headcount photos are ticked by default). Delete wrong photos.
-4. **Submit**: needs at least one ticked photo. The backend sends ticked photos to the AI face API.
+3. **Photos** (`/staff/visits/:id/photos`): two tabs, **Normal photos** and **Headcount · AI**. **Take photo** (native camera) or **Upload**. Photos are compressed in the browser and uploaded straight away with GPS + time. Delete wrong photos (with confirm).
+4. **Submit** (with confirm): needs at least one headcount photo. The backend sends headcount photos to the AI face API.
 5. **Visit summary** (`/staff/visits/:id`): refreshes every 2 s while the AI is counting, then shows the count per photo and the visit headcount.
 
 ### 5.3 Admin dashboard (desktop-first, responsive)
-- **Dashboard** (`/admin`): KPI tiles (students counted by AI, schools covered, visits completed, AI counting, photos), recent visits, students by city.
-- **Visits** (`/admin/visits`): table with search (school/staff) and city/status filters.
+- **Dashboard** (`/admin`): month picker, KPI tiles (students counted by AI + this week, schools covered + % of 6,000, visits completed, AI counting), students-by-city bar chart, recent visits. Refreshes every 30 s.
+- **Visits** (`/admin/visits`): table with search (school/staff), city/status/period filters (kept in the URL), pagination, **Export** (CSV, opens in Excel).
 - **Visit detail** (`/admin/visits/:id`): headcount, school/city/date/staff, GPS (opens OpenStreetMap), all photos with type and AI count.
 - **Map** (`/admin/map`): visit pins coloured by status (Leaflet + OpenStreetMap, free). Add `leaflet.markercluster` when pins reach the thousands.
 - **Users** (`/admin/users`): create **admin or staff** logins, reset password, enable/disable.
-- **Reports** (`/admin/reports`): Excel / PPT buttons, enabled once the backend generates the files.
+- Excel with photos / PPT reports: server-generated, add once the backend exists (the Visits **Export** button is the place for them).
 
 ### 5.4 Not in v1 (add when needed)
 - Offline queue (IndexedDB) for poor network: today photos upload while online.
@@ -178,7 +177,7 @@ users:     { _id, name, username, passwordHash, role: 'admin'|'staff', active, c
 visits:    { _id, date, cityId, schoolName, staffId,
              lat, lng, accuracy,
              submittedAt, createdAt }                    // status + headcount derived from photos
-photos:    { _id, visitId, type: 'banner'|'leaflet'|'place'|'headcount',
+photos:    { _id, visitId, type: 'normal'|'headcount',
              url, thumbUrl, hash, lat, lng, takenAt, needsHeadcount,
              ai: { status: 'pending'|'processing'|'done'|'failed', count, boxes[] } }
 ```
@@ -193,13 +192,12 @@ POST   /users                         (admin) { name, username, password, role: 
 PATCH  /users/:id                     (admin) { active?, password? } → user
 GET    /cities                        → [{ id, name, district }]
 POST   /visits                        (staff) { date, cityId, schoolName, lat, lng, accuracy } → visit
-GET    /visits?mine&cityId&status&q   → [visit]   (paginate on the real server)
+GET    /visits?mine&cityId&status&q&month   → [visit]   (month = YYYY-MM)   (paginate on the real server)
 GET    /visits/:id                    → visit with photos[]
-POST   /visits/:id/photos             multipart: file, type, needsHeadcount, lat, lng, takenAt → photo
-PATCH  /visits/:id/photos/:photoId    { needsHeadcount } → photo
+POST   /visits/:id/photos             multipart: file, type: 'normal'|'headcount', lat, lng, takenAt → photo
 DELETE /visits/:id/photos/:photoId
-POST   /visits/:id/submit             → queues AI for needsHeadcount photos → visit
-GET    /stats                         (admin) → { totalVisits, completed, processing, schools, students, photos, byCity[], recent[] }
+POST   /visits/:id/submit             → queues AI for headcount photos → visit (400 if none)
+GET    /stats?month                   (admin) → { totalVisits, completed, processing, schools, students, studentsThisWeek, photos, byCity[], recent[] }
 
 visit (as returned) adds: status ('draft'|'processing'|'completed'), headcount (max AI count), photoCount, cityName, district, staffName
 Auth: Bearer token. A 401 sends the user back to /login.
@@ -270,7 +268,7 @@ Also still to confirm:
 - **Timeline**, and when does the field activity start?
 - The **city Excel**: which columns (city, district, …)? Does it also list schools? (If yes, school name becomes a pick list.)
 - **Colours, logo and assets** for the app.
-- The client also asked for **collateral / closing photos** and a **principal-signed letter**. The simplified flow only has Banner / Leaflet / Place / Headcount. Add "Letter" (and "Closing") as photo types if still needed — it is one line in `src/constants/visit.js`.
+- The client also asked for **collateral / closing photos** and a **principal-signed letter**. The design has only Normal / Headcount photos. Add a "Letter" group if still needed (`PHOTO_TYPES` in `src/constants/visit.js`).
 
 ---
 
@@ -278,32 +276,32 @@ Also still to confirm:
 
 **Run:** `npm install` → `npm run dev` (open the URL, app uses `#/` routes). `npm run build` → static files in `dist/` (host anywhere). `npm run lint`.
 
-**Demo logins (mock mode):** `admin / admin123`, `staff / staff123`, `priya / staff123`. Mock data lives in the browser's localStorage (`mockdb-v1`); clear site data to reset.
+**Demo logins (mock mode):** `admin / admin123`, `ravi.kumar / staff123` (other staff: `priya.das`, `amit.sahu`, `sneha.m`, `suresh.b`, all `staff123`). Mock data lives in the browser's localStorage (`mockdb-v2`); clear site data to reset.
 
 **Settings:** everything is in `src/config/config.js` (no `.env` files):
 - `useMock: true` → in-browser mock API. Set `false` and fill `apiUrl` once the backend is live.
 - `apiUrl`, `appName`, `mockAiDelay`.
 
-**Client branding:** colours are Tailwind tokens in `src/index.css` (`@theme { --color-brand-* }`); logo/icon in `public/icon.svg` and `src/assets/`.
+**Client branding:** Horlicks palette from the Penpot design as Tailwind tokens in `src/index.css` (`brand-*` navy, `accent-*` red, `sun-400`, `cream`, `page`); logo in `src/assets/logo.png`, app icon `public/icon.svg`.
 
 ```text
 src/
-├── components/ui/        Button, Input, Select, Card, Badge, Modal, Spinner, EmptyState
-├── components/common/    PageHeader
+├── components/ui/        Button, Input, Select, Card, Badge, Avatar, Modal, Spinner, EmptyState
+├── components/common/    PageHeader (admin), TopBar + BottomBar (staff phone), Logo
 ├── config/config.js      all app settings
 ├── constants/visit.js    photo types, visit statuses, roles
 ├── data/cities.json      city list (replace with the client's Excel)
 ├── features/
 │   ├── auth/             AuthProvider, useAuth, RequireRole
-│   ├── visits/           VisitDetailsForm, PhotoCapture, PhotoGrid, HeadcountSummary, VisitDetail, VisitCard, useVisit
-│   ├── monitoring/       KpiTiles, CityTable, VisitsTable, Filters, VisitsMap
+│   ├── visits/           VisitDetailsForm, PhotoGrid, HeadcountSummary, VisitDetail, VisitCard, useVisit
+│   ├── monitoring/       KpiTiles, CityChart, VisitsTable, Filters, VisitsMap
 │   └── users/            UserForm, UserTable
 ├── hooks/useGeolocation.js
 ├── layouts/              AdminLayout (sidebar), StaffLayout (mobile header)
 ├── pages/                LoginPage, NotFoundPage, admin/*, staff/*
 ├── routes/index.jsx      createHashRouter + role guards
 ├── services/api/         client.js (fetch + token), auth/users/cities/visits.js, mock/
-└── utils/                compressImage.js (canvas → JPEG), format.js
+└── utils/                compressImage.js (canvas → JPEG), format.js, downloadCsv.js
 ```
 
 Each API module exports the same functions for mock and real mode, so switching to the backend means changing only `useMock` in `config.js`.

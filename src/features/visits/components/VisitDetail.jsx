@@ -1,53 +1,128 @@
-import { MdOpenInNew } from 'react-icons/md'
+import 'leaflet/dist/leaflet.css'
+import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet'
+import { MdLocationOn } from 'react-icons/md'
 import { Card } from '../../../components/ui'
-import { formatCoords, formatDate, formatDateTime } from '../../../utils/format'
+import { formatCoords, formatDate, formatDateTime, mapUrl } from '../../../utils/format'
 import HeadcountSummary from './HeadcountSummary'
 import PhotoGrid from './PhotoGrid'
-import VisitStatusBadge from './VisitStatusBadge'
 
 function Row({ label, children }) {
   return (
-    <div className="flex justify-between gap-4 py-2 text-sm">
+    <div className="flex justify-between gap-4 py-2.5 text-sm">
       <dt className="text-gray-500">{label}</dt>
-      <dd className="text-right font-medium">{children}</dd>
+      <dd className="text-right font-semibold">{children}</dd>
     </div>
   )
 }
 
-// Read-only visit view, shared by the staff summary and the admin detail page.
-export default function VisitDetail({ visit, showStaff }) {
+function MapLink({ visit }) {
   return (
-    <div className="space-y-4">
-      <HeadcountSummary visit={visit} />
+    <a href={mapUrl(visit.lat, visit.lng)} target="_blank" rel="noreferrer" className="text-brand-700 hover:underline">
+      {formatCoords(visit.lat, visit.lng)}
+    </a>
+  )
+}
 
-      <Card>
-        <dl className="divide-y divide-gray-100">
-          <Row label="School">{visit.schoolName}</Row>
-          <Row label="City">
-            {visit.cityName} · {visit.district}
+function LocationCard({ visit }) {
+  if (visit.lat == null) return null
+  return (
+    <Card className="p-5">
+      <h2 className="mb-3 font-bold">Location</h2>
+      <MapContainer
+        key={visit.id}
+        center={[visit.lat, visit.lng]}
+        zoom={14}
+        zoomControl={false}
+        dragging={false}
+        scrollWheelZoom={false}
+        doubleClickZoom={false}
+        className="z-0 h-44 rounded-xl"
+      >
+        <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <CircleMarker center={[visit.lat, visit.lng]} radius={9} pathOptions={{ color: '#fff', weight: 3, fillColor: '#d7262e', fillOpacity: 1 }} />
+      </MapContainer>
+      <p className="mt-3 flex items-center gap-1 text-sm font-semibold">
+        <MdLocationOn className="size-4 text-gray-500" /> {formatCoords(visit.lat, visit.lng)}
+        {visit.accuracy != null && <span className="font-normal text-gray-500">· ±{visit.accuracy} m</span>}
+      </p>
+      <a href={mapUrl(visit.lat, visit.lng)} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand-700 hover:underline">
+        Open in map →
+      </a>
+    </Card>
+  )
+}
+
+// Read-only visit view. admin = two-column desktop layout with the map; otherwise the staff phone summary.
+export default function VisitDetail({ visit, admin }) {
+  const head = visit.photos.filter((p) => p.type === 'headcount')
+  const normal = visit.photos.filter((p) => p.type !== 'headcount')
+
+  const details = (
+    <Card className="p-5">
+      {admin && <h2 className="mb-1 font-bold">Visit details</h2>}
+      <dl className="divide-y divide-gray-100">
+        {admin && <Row label="School">{visit.schoolName}</Row>}
+        <Row label="City">
+          {visit.cityName} · {visit.district}
+        </Row>
+        <Row label="Visit date">{formatDate(visit.date)}</Row>
+        <Row label="Staff">{visit.staffName}</Row>
+        <Row label="Submitted">{formatDateTime(visit.submittedAt)}</Row>
+        {admin ? (
+          <Row label="Photos">
+            {normal.length} normal · {head.length} headcount
           </Row>
-          <Row label="Visit date">{formatDate(visit.date)}</Row>
-          {showStaff && <Row label="Staff">{visit.staffName}</Row>}
-          <Row label="Status">
-            <VisitStatusBadge status={visit.status} />
-          </Row>
-          <Row label="Submitted">{formatDateTime(visit.submittedAt)}</Row>
+        ) : (
           <Row label="Location">
-            <a
-              href={`https://www.openstreetmap.org/?mlat=${visit.lat}&mlon=${visit.lng}#map=17/${visit.lat}/${visit.lng}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-brand-600 hover:underline"
-            >
-              {formatCoords(visit.lat, visit.lng)} <MdOpenInNew />
-            </a>
+            <MapLink visit={visit} />
           </Row>
-        </dl>
-      </Card>
+        )}
+      </dl>
+    </Card>
+  )
 
-      <div>
-        <h2 className="mb-2 font-semibold">Photos ({visit.photoCount})</h2>
-        <PhotoGrid photos={visit.photos} />
+  const headSection = (
+    <section>
+      <h2 className="mb-2 font-bold">Headcount photos · AI count ({head.length})</h2>
+      {head.length ? <PhotoGrid photos={head} className="grid-cols-3" /> : <p className="text-sm text-gray-500">No headcount photos.</p>}
+    </section>
+  )
+
+  const normalSection = (
+    <section>
+      <h2 className="mb-2 font-bold">Normal photos ({normal.length})</h2>
+      {normal.length ? (
+        <PhotoGrid
+          photos={normal}
+          label={admin ? 'Normal' : undefined}
+          className={admin ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-6' : 'grid-cols-4'}
+        />
+      ) : (
+        <p className="text-sm text-gray-500">No normal photos.</p>
+      )}
+    </section>
+  )
+
+  if (!admin)
+    return (
+      <div className="space-y-5">
+        <HeadcountSummary visit={visit} />
+        {headSection}
+        {details}
+        {normalSection}
+      </div>
+    )
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0 space-y-6">
+        <HeadcountSummary visit={visit} />
+        {headSection}
+        {normalSection}
+      </div>
+      <div className="space-y-6">
+        {details}
+        <LocationCard visit={visit} />
       </div>
     </div>
   )

@@ -14,7 +14,12 @@ export function useGeolocation() {
         setState((s) => ({ ...s, loading: true, error: null }))
         navigator.geolocation.getCurrentPosition(
           (p) => {
-            const coords = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) }
+            const coords = {
+              lat: p.coords.latitude,
+              lng: p.coords.longitude,
+              accuracy: Math.round(p.coords.accuracy),
+              capturedAt: new Date(p.timestamp).toISOString(),
+            }
             setState({ coords, error: null, loading: false })
             resolve(coords)
           },

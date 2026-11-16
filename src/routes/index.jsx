@@ -6,7 +6,6 @@ import LoginPage from '../pages/LoginPage'
 import NotFoundPage from '../pages/NotFoundPage'
 import DashboardPage from '../pages/admin/DashboardPage'
 import MapPage from '../pages/admin/MapPage'
-import ReportsPage from '../pages/admin/ReportsPage'
 import UsersPage from '../pages/admin/UsersPage'
 import VisitDetailPage from '../pages/admin/VisitDetailPage'
 import VisitsPage from '../pages/admin/VisitsPage'
@@ -45,7 +44,6 @@ export const router = createHashRouter([
       { path: 'visits/:id', element: <VisitDetailPage /> },
       { path: 'map', element: <MapPage /> },
       { path: 'users', element: <UsersPage /> },
-      { path: 'reports', element: <ReportsPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

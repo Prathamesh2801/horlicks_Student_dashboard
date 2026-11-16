@@ -5,7 +5,7 @@ import { config } from '../../../config/config'
 import { compressImage } from '../../../utils/compressImage'
 import { authStore } from '../client'
 
-const DB_KEY = 'mockdb-v1'
+const DB_KEY = 'mockdb-v2'
 const cityById = Object.fromEntries(cities.map((c) => [c.id, c]))
 const uid = () => Math.random().toString(36).slice(2, 10)
 const delay = (ms = 250) => new Promise((r) => setTimeout(r, ms))
@@ -23,47 +23,62 @@ const SEED_COORDS = {
   puri: [19.8135, 85.8312],
   bls: [21.4942, 86.9317],
   bpd: [21.9347, 86.7337],
+  jsg: [21.8554, 84.0062],
+  angul: [20.8444, 85.1511],
 }
+const SCHOOLS = ['Govt. UP School', 'Nodal UP School', 'Govt. High School', 'Project UP School', 'Govt. Girls High School', 'Govt. ME School']
+const PLACES = ['Patia', 'Mangalabag', 'Chend', 'Gosaninuagaon', 'Dhanupali', 'Baliapanda', 'Station Square', 'Bhanjpur', 'Sarbahal', 'Talcher Road']
 
 function seed() {
-  const createdAt = new Date().toISOString()
+  const now = Date.now()
+  const daysAgo = (n) => new Date(now - n * 86400000).toISOString()
+  const user = (id, name, username, role, created, active = true) => ({
+    id,
+    name,
+    username,
+    password: role === 'admin' ? 'admin123' : 'staff123',
+    role,
+    active,
+    createdAt: daysAgo(created),
+  })
   const users = [
-    { id: 'u1', name: 'State Admin', username: 'admin', password: 'admin123', role: 'admin', active: true, createdAt },
-    { id: 'u2', name: 'Ravi Kumar', username: 'staff', password: 'staff123', role: 'staff', active: true, createdAt },
-    { id: 'u3', name: 'Priya Das', username: 'priya', password: 'staff123', role: 'staff', active: true, createdAt },
+    user('u1', 'State Admin', 'admin', 'admin', 30),
+    user('u2', 'Ravi Kumar', 'ravi.kumar', 'staff', 29),
+    user('u3', 'Priya Das', 'priya.das', 'staff', 29),
+    user('u4', 'Amit Sahu', 'amit.sahu', 'staff', 28),
+    user('u5', 'Sneha Mishra', 'sneha.m', 'staff', 28),
+    user('u6', 'Rahul Nayak', 'rahul.n', 'admin', 26),
+    user('u7', 'Deepa Patra', 'deepa.p', 'staff', 25, false),
+    user('u8', 'Suresh Behera', 'suresh.b', 'staff', 23),
   ]
+  const staff = users.filter((u) => u.role === 'staff' && u.active)
+  const cityIds = Object.keys(SEED_COORDS)
 
-  const schools = ['Govt. UP School', 'Govt. High School', 'Nodal UP School', 'Project UP School']
-  const visits = Object.entries(SEED_COORDS).map(([cityId, [lat, lng]], i) => {
-    const staff = users[1 + (i % 2)]
-    const day = new Date(Date.now() - i * 86400000).toISOString()
+  const visits = Array.from({ length: 30 }, (_, i) => {
+    const cityId = cityIds[(i * 7) % cityIds.length]
+    const [lat, lng] = SEED_COORDS[cityId]
+    const s = staff[i % staff.length]
+    const created = daysAgo(Math.floor(i * 1.2))
+    const status = i === 0 ? 'processing' : i === 5 ? 'draft' : 'completed'
     const id = `seed${i}`
-    const photos = ['banner', 'leaflet', 'place', 'headcount', 'headcount', 'headcount'].map((type, j) => {
+    const types = [...Array(status === 'draft' ? 4 : 6 + (i % 5)).fill('normal'), ...Array(status === 'draft' ? 0 : 3).fill('headcount')]
+    const photos = types.map((type, j) => {
       const pid = `${id}p${j}`
-      const counted = type === 'headcount'
-      return {
-        id: pid,
-        type,
-        url: null,
-        needsHeadcount: counted,
-        lat,
-        lng,
-        takenAt: day,
-        ai: counted ? { status: 'done', count: fakeCount(pid) } : null,
-      }
+      const ai = type !== 'headcount' ? null : status === 'processing' ? { status: 'processing', readyAt: now + 45000 } : { status: 'done', count: fakeCount(pid) }
+      return { id: pid, type, url: null, needsHeadcount: type === 'headcount', lat, lng, takenAt: created, ai }
     })
     return {
       id,
-      date: day.slice(0, 10),
+      date: created.slice(0, 10),
       cityId,
-      schoolName: `${schools[i % 4]}, ${cityById[cityId].name}`,
-      lat: lat + 0.01 * (i % 3),
-      lng: lng - 0.01 * (i % 2),
-      accuracy: 12,
-      staffId: staff.id,
-      staffName: staff.name,
-      createdAt: day,
-      submittedAt: day,
+      schoolName: `${SCHOOLS[i % SCHOOLS.length]}, ${PLACES[(i * 3) % PLACES.length]}`,
+      lat: lat + 0.03 * ((i % 5) - 2),
+      lng: lng + 0.03 * ((i % 3) - 1),
+      accuracy: 8 + (i % 10),
+      staffId: s.id,
+      staffName: s.name,
+      createdAt: created,
+      submittedAt: status === 'draft' ? null : created,
       photos,
     }
   })
@@ -188,7 +203,7 @@ export async function createVisit({ date, cityId, schoolName, lat, lng, accuracy
   return view(visit)
 }
 
-export async function listVisits({ mine, cityId, status, q } = {}) {
+export async function listVisits({ mine, cityId, status, q, month } = {}) {
   await delay()
   const query = q?.trim().toLowerCase()
   const me = currentUser()
@@ -197,6 +212,7 @@ export async function listVisits({ mine, cityId, status, q } = {}) {
     .filter((v) => !mine || v.staffId === me?.id)
     .filter((v) => !cityId || v.cityId === cityId)
     .filter((v) => !status || v.status === status)
+    .filter((v) => !month || v.date.startsWith(month))
     .filter((v) => !query || `${v.schoolName} ${v.staffName}`.toLowerCase().includes(query))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
@@ -206,7 +222,7 @@ export async function getVisit(id) {
   return view(findVisit(load(), id))
 }
 
-export async function uploadPhoto(visitId, { file, type, needsHeadcount, lat, lng, takenAt }) {
+export async function uploadPhoto(visitId, { file, type, lat, lng, takenAt }) {
   const thumb = await compressImage(file, 480, 0.6)
   const url = await new Promise((resolve) => {
     const reader = new FileReader()
@@ -214,16 +230,8 @@ export async function uploadPhoto(visitId, { file, type, needsHeadcount, lat, ln
     reader.readAsDataURL(thumb)
   })
   const db = load()
-  const photo = { id: uid(), type, url, needsHeadcount, lat, lng, takenAt, ai: null }
+  const photo = { id: uid(), type, url, needsHeadcount: type === 'headcount', lat, lng, takenAt, ai: null }
   findVisit(db, visitId).photos.push(photo)
-  save(db)
-  return photo
-}
-
-export async function updatePhoto(visitId, photoId, changes) {
-  const db = load()
-  const photo = findVisit(db, visitId).photos.find((p) => p.id === photoId)
-  Object.assign(photo, changes)
   save(db)
   return photo
 }
@@ -239,6 +247,7 @@ export async function submitVisit(id) {
   await delay()
   const db = load()
   const visit = findVisit(db, id)
+  if (!visit.photos.some((p) => p.needsHeadcount)) return fail('Add at least one headcount photo')
   const readyAt = Date.now() + config.mockAiDelay
   visit.submittedAt = new Date().toISOString()
   visit.photos.forEach((p) => {
@@ -248,8 +257,10 @@ export async function submitVisit(id) {
   return view(visit)
 }
 
-export async function getStats() {
-  const visits = await listVisits()
+export async function getStats({ month } = {}) {
+  const all = await listVisits()
+  const visits = all.filter((v) => !month || v.date.startsWith(month))
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
   const sumHeadcount = (list) => list.reduce((s, v) => s + (v.headcount ?? 0), 0)
   const byCity = cities
     .map((c) => {
@@ -264,6 +275,7 @@ export async function getStats() {
     processing: visits.filter((v) => v.status === 'processing').length,
     schools: new Set(visits.map((v) => `${v.cityId}|${v.schoolName.toLowerCase()}`)).size,
     students: sumHeadcount(visits),
+    studentsThisWeek: sumHeadcount(all.filter((v) => v.date >= weekAgo)),
     photos: visits.reduce((s, v) => s + v.photoCount, 0),
     byCity,
     recent: visits.slice(0, 5),

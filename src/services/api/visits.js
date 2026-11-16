@@ -12,11 +12,10 @@ const real = {
     Object.entries(fields).forEach(([k, v]) => body.append(k, v))
     return request(`/visits/${visitId}/photos`, { method: 'POST', body })
   },
-  updatePhoto: (visitId, photoId, body) => request(`/visits/${visitId}/photos/${photoId}`, { method: 'PATCH', body }),
   deletePhoto: (visitId, photoId) => request(`/visits/${visitId}/photos/${photoId}`, { method: 'DELETE' }),
   submitVisit: (id) => request(`/visits/${id}/submit`, { method: 'POST' }),
-  getStats: () => request('/stats'),
+  getStats: (params) => request('/stats', { params }),
 }
 
-export const { createVisit, listVisits, getVisit, uploadPhoto, updatePhoto, deletePhoto, submitVisit, getStats } =
+export const { createVisit, listVisits, getVisit, uploadPhoto, deletePhoto, submitVisit, getStats } =
   config.useMock ? mock : real
