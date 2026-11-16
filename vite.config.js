@@ -17,6 +17,9 @@ export default defineConfig({
     VitePWA({
       // "prompt": a new version waits until the user taps Reload, so a visit in progress is never interrupted.
       registerType: "prompt",
+      // Serve the manifest + service worker in `npm run dev` too, so the app can be installed/tested via a tunnel.
+      // suppressWarnings: dev-dist has no built files to precache, so workbox's "glob matches nothing" warning is expected.
+      devOptions: { enabled: true, type: "module", navigateFallback: "index.html", suppressWarnings: true },
       includeAssets: ["icon.svg", "favicon-64.png", "apple-touch-icon.png"],
       manifest: {
         id: "./",
