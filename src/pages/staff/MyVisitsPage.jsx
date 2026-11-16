@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { MdAdd, MdAssignment, MdLogout } from 'react-icons/md'
+import { MdAdd, MdAssignment, MdInstallMobile, MdLogout } from 'react-icons/md'
 import Logo from '../../components/common/Logo'
 import { EmptyState, Spinner } from '../../components/ui'
 import { config } from '../../config/config'
 import { useAuth } from '../../features/auth'
+import { installActions, useInstall } from '../../features/pwa'
 import { VisitCard } from '../../features/visits'
 import { listVisits } from '../../services/api/visits'
 import { formatNumber, monthISO } from '../../utils/format'
@@ -13,6 +14,7 @@ const RECENT = 5
 
 export default function MyVisitsPage() {
   const { user, logout } = useAuth()
+  const { canInstall } = useInstall()
   const [visits, setVisits] = useState(null)
   const [showAll, setShowAll] = useState(false)
 
@@ -42,6 +44,16 @@ export default function MyVisitsPage() {
           <p className="font-bold text-brand-700">{config.appName}</p>
           <p className="truncate text-xs text-gray-500">{user.name} · Staff</p>
         </div>
+        {canInstall && (
+          <button
+            onClick={installActions.open}
+            className="rounded-lg p-2 text-brand-700 hover:bg-brand-50"
+            aria-label="Install app"
+            title="Install app"
+          >
+            <MdInstallMobile className="size-5" />
+          </button>
+        )}
         <button onClick={logout} className="rounded-lg p-2 text-gray-700 hover:bg-gray-100" aria-label="Log out" title="Log out">
           <MdLogout className="size-5" />
         </button>

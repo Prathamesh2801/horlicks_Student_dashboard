@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { MdDashboard, MdFormatListBulleted, MdLogout, MdMap, MdMenu, MdPerson } from 'react-icons/md'
+import { MdDashboard, MdFormatListBulleted, MdInstallDesktop, MdLogout, MdMap, MdMenu, MdPerson } from 'react-icons/md'
 import Logo from '../components/common/Logo'
 import { Avatar } from '../components/ui'
 import { useAuth } from '../features/auth'
+import { installActions, useInstall } from '../features/pwa'
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: MdDashboard, end: true },
@@ -15,6 +16,7 @@ const NAV = [
 
 function Sidebar({ onNavigate }) {
   const { user, logout } = useAuth()
+  const { canInstall } = useInstall()
   return (
     <div className="flex h-full flex-col bg-white px-4 py-6">
       <div className="mb-8 px-2">
@@ -41,7 +43,18 @@ function Sidebar({ onNavigate }) {
           </NavLink>
         ))}
       </nav>
-      <div className="mt-auto flex items-center gap-3 rounded-xl bg-page p-3">
+      {canInstall && (
+        <button
+          onClick={() => {
+            onNavigate?.()
+            installActions.open()
+          }}
+          className="mt-auto mb-3 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-brand-700 ring-1 ring-brand-200 transition hover:bg-brand-50"
+        >
+          <MdInstallDesktop className="size-5" /> Install app
+        </button>
+      )}
+      <div className={`${canInstall ? '' : 'mt-auto'} flex items-center gap-3 rounded-xl bg-page p-3`}>
         <Avatar name={user.name} className="bg-sun-400 text-brand-900" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{user.name}</p>

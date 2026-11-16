@@ -17,6 +17,8 @@ export default function AuthProvider({ children }) {
       },
       logout() {
         authStore.clear()
+        // Drop API responses cached for offline use, so the next user on this device can't see them.
+        if ('caches' in window) caches.delete('api').catch(() => {})
         setAuth(null)
       },
     }),

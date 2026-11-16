@@ -1,14 +1,22 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Navigate, useNavigate } from 'react-router'
-import { MdLock, MdVisibility, MdVisibilityOff } from 'react-icons/md'
+import { MdInstallMobile, MdLock, MdVisibility, MdVisibilityOff } from 'react-icons/md'
 import Logo from '../components/common/Logo'
 import { Button, Card, Input } from '../components/ui'
 import { config } from '../config/config'
 import { homePathFor, useAuth } from '../features/auth'
 
+// Mock mode only: one tap fills a demo login. Remove with useMock: false.
+const DEMO_LOGINS = [
+  { label: 'Admin', username: 'admin', password: 'admin123' },
+  { label: 'Staff', username: 'ravi.kumar', password: 'staff123' },
+]
+import { installActions, useInstall } from '../features/pwa'
+
 export default function LoginPage() {
   const { user, login } = useAuth()
+  const { canInstall } = useInstall()
   const navigate = useNavigate()
   const [form, setForm] = useState({ username: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
@@ -55,6 +63,27 @@ export default function LoginPage() {
         <Card className="mt-10 p-6 shadow-xl">
           <h2 className="text-xl font-bold">Sign in</h2>
           <p className="mb-5 text-sm text-gray-500">Use the username and password from your admin.</p>
+          {config.useMock && (
+            <div className="mb-5 rounded-xl bg-brand-50 p-3 ring-1 ring-brand-100">
+              <p className="mb-2 text-xs font-semibold text-brand-700">Demo · tap to fill</p>
+              <div className="grid grid-cols-2 gap-2">
+                {DEMO_LOGINS.map((d) => (
+                  <button
+                    key={d.label}
+                    type="button"
+                    onClick={() => {
+                      setForm({ username: d.username, password: d.password })
+                      setError(null)
+                    }}
+                    className={`rounded-lg px-3 py-2 text-left ring-1 transition ${form.username === d.username ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-gray-800 ring-gray-200 hover:ring-brand-300'}`}
+                  >
+                    <span className="block text-sm font-semibold">{d.label}</span>
+                    <span className={`block text-xs ${form.username === d.username ? 'text-white/80' : 'text-gray-500'}`}>{d.username}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Username"
@@ -97,8 +126,14 @@ export default function LoginPage() {
         <p className="mt-6 flex items-center justify-center gap-1.5 text-sm text-gray-600">
           <MdLock className="size-4" /> Accounts are created by your admin
         </p>
-        {config.useMock && (
-          <p className="mt-2 text-center text-xs text-gray-500">Demo: admin / admin123 · ravi.kumar / staff123</p>
+        {canInstall && (
+          <button
+            type="button"
+            onClick={installActions.open}
+            className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-700 shadow-sm ring-1 ring-gray-200 hover:bg-brand-50"
+          >
+            <MdInstallMobile className="size-5" /> Install the app
+          </button>
         )}
       </motion.div>
     </div>

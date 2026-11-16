@@ -305,3 +305,10 @@ src/
 ```
 
 Each API module exports the same functions for mock and real mode, so switching to the backend means changing only `useMock` in `config.js`.
+
+**PWA (install + offline):** `src/features/pwa/`, configured in `vite.config.js`.
+- Installable on Android, iOS and desktop (manifest, PNG + maskable icons, `apple-touch-icon`, iOS meta tags). Icons are made from `src/assets/logo.png`.
+- **Install sheet** opens by itself 4 s after load (at most once a week after "Not now"), or from **Install app** on the login page, the staff header and the admin sidebar. It picks the flow per device: one-tap **Install** where the browser supports it (Chrome / Edge / Samsung on Android and desktop); **Share → Add to Home Screen** steps on iOS (Safari, Chrome, others); **⋮ → Install app** steps on other Android browsers; **File → Add to Dock** on Mac Safari; "open in your browser" + copy link inside WhatsApp / Instagram / Facebook. Hidden once installed.
+- **Offline:** the app shell is pre-cached; Google Fonts and OpenStreetMap tiles are cached as viewed; real-API `GET`s use network-first with a 7-day offline copy (cache `api`, cleared on logout). An offline / back-online notice is shown.
+- **Updates** use `registerType: 'prompt'`: a "new version, Reload" toast, so a visit in progress is never reloaded. Open tabs check for updates hourly.
+- Not yet: queueing photo uploads made while offline (needed once the real API is live; the mock API already works offline).
