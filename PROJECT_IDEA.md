@@ -1,0 +1,309 @@
+# Odisha School Activity AI Dashboard: Project Idea
+
+> Status: **React frontend scaffolded** (runs on a built-in mock API; see §15). Backend API + AI face API not started. Awaiting client answers (§14) and the client's colours/assets.
+> Design (Penpot, made before the simplified flow of 2026-11-16, partly outdated): https://design.penpot.app/?screen=workspace&team-id=cc32ce3d-bd54-8151-8007-eabd223f5fb7&file-id=b55064db-d93d-80f9-8008-de1fcbfe1940
+> Owners: Client (React) is mine. Server, APIs and AI belong to a colleague (or me, not decided yet).
+
+---
+
+## 1. Overview
+
+The client runs an activity programme in **6000 government schools across Odisha (18–20 districts)**. Field staff visit each school, carry out the activity and capture proof: they enter the date, city and school, then take photos (banner, leaflet, places and 5–6 classroom photos for the AI headcount). GPS + time are captured automatically.
+
+We need:
+- A **monitoring dashboard** that shows all of this by district, on a map and per school.
+- **AI that counts the students** in the classroom photos.
+- **Excel and PPT downloads** of the data and photos, with a summary.
+
+**Scale:** 6000 schools × ~15–18 photos ≈ **90,000 – 1,08,000 photos**.
+
+---
+
+## 2. Client Requirements (as given)
+
+- A dashboard that can **count the students in the classroom using AI**
+- Login **lat/long, timestamp and picture**
+- Activity pictures
+- Collateral pictures
+- Activity closing pictures
+- Count of students
+- Principal or teacher signed letter
+- ~15–18 pictures per school, 6000 schools, state: Odisha
+- **Map view**
+- **Activity view**
+- Districts: 18–20
+- **Download Excel and PPT** of pictures and data, with a summary
+
+---
+
+## 3. Users & Roles
+
+Only **two roles**: `admin` and `staff`.
+
+| Role | Can do | Where |
+|---|---|---|
+| **Admin** | Dashboard, visits, map, reports. **Creates logins (username + password) for both admins and staff**, resets passwords, disables accounts | Web dashboard (responsive, works on phone too) |
+| **Staff** | Sign in, create a visit, take/upload photos, pick headcount photos, submit, see own visits | Phone PWA **"My Workbench"** |
+
+> District Coordinator and Viewer roles were dropped to keep it simple. Can be added later if the client needs district-level access.
+
+---
+
+## 4. Per-School Visit Record (what we capture)
+
+| Field | Type | Notes |
+|---|---|---|
+| Date | Date | Typed/picked by staff (defaults to today) |
+| City | From list | Picked from the client's Excel list of cities (→ `src/data/cities.json` for now) |
+| School name | Text | Typed by staff |
+| Lat / long | GPS | Captured **automatically** when the visit starts and with every photo. The user cannot type it in |
+| Photos | ~10–18 | Each tagged as **Banner / Leaflet / Place / Headcount**. Native camera or upload from the device |
+| Headcount selection | Per photo | Staff ticks **"Count heads"** on the 5–6 photos that show students' faces |
+| AI count per photo | Number | From the AI face-detection API, only for ticked photos (**no manual count**) |
+| Visit headcount | Number | **Highest** count across the ticked photos (the same children appear in several photos, so not the sum) |
+| Status | Enum | `draft` (adding photos) → `processing` (AI counting) → `completed` |
+
+---
+
+## 5. Modules / Screens (Client side, React)
+
+One React app, one login. After sign-in each role is sent to its own area.
+
+### 5.1 Login (`/login`)
+- Username + password. No selfie / face detection.
+- Admin → `/admin`, Staff → `/staff`.
+
+### 5.2 Staff: "My Workbench" (PWA, mobile-first)
+1. **My visits** (`/staff`): staff dashboard, list of own visits with status, photo count and AI count.
+2. **New visit** (`/staff/visits/new`): **Date**, **City** (from the Excel list), **School name**. GPS is captured here; the visit can't start without location.
+3. **Photos** (`/staff/visits/:id/photos`): pick a type (Banner / Leaflet / Place / Headcount), then **Take photo** (native camera) or **Upload**. Photos are compressed in the browser and uploaded straight away with GPS + time. Tick **"Count heads"** on the 5–6 face photos (Headcount photos are ticked by default). Delete wrong photos.
+4. **Submit**: needs at least one ticked photo. The backend sends ticked photos to the AI face API.
+5. **Visit summary** (`/staff/visits/:id`): refreshes every 2 s while the AI is counting, then shows the count per photo and the visit headcount.
+
+### 5.3 Admin dashboard (desktop-first, responsive)
+- **Dashboard** (`/admin`): KPI tiles (students counted by AI, schools covered, visits completed, AI counting, photos), recent visits, students by city.
+- **Visits** (`/admin/visits`): table with search (school/staff) and city/status filters.
+- **Visit detail** (`/admin/visits/:id`): headcount, school/city/date/staff, GPS (opens OpenStreetMap), all photos with type and AI count.
+- **Map** (`/admin/map`): visit pins coloured by status (Leaflet + OpenStreetMap, free). Add `leaflet.markercluster` when pins reach the thousands.
+- **Users** (`/admin/users`): create **admin or staff** logins, reset password, enable/disable.
+- **Reports** (`/admin/reports`): Excel / PPT buttons, enabled once the backend generates the files.
+
+### 5.4 Not in v1 (add when needed)
+- Offline queue (IndexedDB) for poor network: today photos upload while online.
+- Verify / Flag actions for Admin.
+- Bounding boxes drawn on photos (the API contract already returns `boxes`).
+- Charts (day-wise trend etc.).
+
+---
+
+## 6. AI Student Counting
+
+**Approach**
+- A **face / person-detection** model, e.g. **YOLOv8 / YOLO11** (COCO `person` class) or a face detector (RetinaFace / YOLO-face). Works out of the box, no training needed at the start.
+- Wrap it in a small **Python FastAPI** service: it receives an image and returns `{ count, boxes[] }`.
+- Runs **asynchronously** after the visit is submitted, through a job queue. Staff never wait for it; the app polls the visit.
+
+**Counting logic**
+- Run the model **only on the photos the staff ticked "Count heads"** (usually 5–6). The visit's AI count is the **max** across those photos.
+- There is **no manual count**. Field staff never type a number.
+- **Auto-flag** on photo quality: blurry / dark photos, too few activity photos, or zero people detected.
+
+**Known limitations**
+- Crowded classrooms where children block each other, kids sitting on the floor, low light and blurry photos.
+- Mitigation: a photo guideline for field staff (take it from the front, cover the whole room), plus Admin verification (and an optional final-count override, see §14).
+- If the rooms are very dense, try **crowd-counting models** (CSRNet / density maps) or fine-tune YOLO on a few hundred labelled classroom photos.
+
+**Cost:** about 1 lakh images runs fine on CPU in batches. A GPU is optional and only speeds things up.
+
+---
+
+## 7. Validation / Fraud Checks
+
+- **GPS distance check**: the photo location must be within N metres (e.g. 200 m) of the school's master lat/long, otherwise the visit is flagged
+- **Timestamp window**: photos must be within the visit time window
+- **EXIF check** where available (date, GPS)
+- **Duplicate photo detection** (perceptual hash) to stop the same photo being reused across schools
+- Gallery upload is **allowed** (user decision), so the EXIF + duplicate checks above matter more
+
+---
+
+## 8. Exports
+
+| Export | Content | Library |
+|---|---|---|
+| **Excel** | Sheet 1: Summary (district-wise totals). Sheet 2: school-wise data (all fields + photo links) | `exceljs` (server) / `SheetJS` |
+| **PPT** | Summary slides first (KPIs, district table), then **one slide per school** with photos + key data | `pptxgenjs` |
+
+- Small exports (one school or block) can be generated directly.
+- **Large exports** (a full district or the whole state, thousands of slides) run as a **background job on the server**. The user gets a download link when the job finishes.
+- PPT size note: embed **compressed thumbnails** in slides, not full-size photos, otherwise the file will be GBs.
+
+---
+
+## 9. Proposed Architecture
+
+```
+ ┌──────────────────────┐      ┌──────────────────────┐
+ │  React Dashboard     │      │  Field PWA (React)   │
+ │  (Vite, Map, Charts) │      │  camera + GPS        │
+ └──────────┬───────────┘      └──────────┬───────────┘
+            │  REST (JWT)                 │  upload via pre-signed URL
+            ▼                             ▼
+ ┌──────────────────────┐      ┌──────────────────────┐
+ │  Node.js / Express   │─────▶│  Object Storage      │
+ │  API                 │      │  (S3 / DO Spaces)    │
+ └───┬─────────┬────────┘      └──────────▲───────────┘
+     │         │ job queue (BullMQ+Redis)  │ read image
+     ▼         ▼                           │
+ ┌────────┐ ┌──────────────────────┐       │
+ │MongoDB │ │ Python FastAPI       │───────┘
+ │        │ │ YOLO person counter  │
+ └────────┘ └──────────────────────┘
+            Export worker (Excel / PPT) → storage → download link
+```
+
+**Likely stack (not final):** MERN + Python AI service
+- Frontend (**built**, see §15): React + Vite (JS), React Router (`createHashRouter`), Tailwind CSS v4, Framer Motion, React Icons, react-leaflet, vite-plugin-pwa
+- Backend: Node.js + Express, MongoDB (Mongoose), JWT auth, BullMQ + Redis
+- AI: Python, FastAPI, Ultralytics YOLO
+- Storage: AWS S3 / DigitalOcean Spaces (+ CDN for thumbnails)
+
+---
+
+## 10. Data Model Sketch
+
+```js
+cities:    { _id, name, district }                       // imported from the client's Excel
+users:     { _id, name, username, passwordHash, role: 'admin'|'staff', active, createdBy, createdAt }
+visits:    { _id, date, cityId, schoolName, staffId,
+             lat, lng, accuracy,
+             submittedAt, createdAt }                    // status + headcount derived from photos
+photos:    { _id, visitId, type: 'banner'|'leaflet'|'place'|'headcount',
+             url, thumbUrl, hash, lat, lng, takenAt, needsHeadcount,
+             ai: { status: 'pending'|'processing'|'done'|'failed', count, boxes[] } }
+```
+> Put a `2dsphere` index on visit location if map/distance queries are needed server-side.
+
+**API contract** (the frontend mock in `src/services/api/mock` implements exactly this):
+
+```text
+POST   /auth/login                    { username, password } → { token, user:{ id, name, username, role } }
+GET    /users                         (admin) → [user]
+POST   /users                         (admin) { name, username, password, role: 'admin'|'staff' } → user
+PATCH  /users/:id                     (admin) { active?, password? } → user
+GET    /cities                        → [{ id, name, district }]
+POST   /visits                        (staff) { date, cityId, schoolName, lat, lng, accuracy } → visit
+GET    /visits?mine&cityId&status&q   → [visit]   (paginate on the real server)
+GET    /visits/:id                    → visit with photos[]
+POST   /visits/:id/photos             multipart: file, type, needsHeadcount, lat, lng, takenAt → photo
+PATCH  /visits/:id/photos/:photoId    { needsHeadcount } → photo
+DELETE /visits/:id/photos/:photoId
+POST   /visits/:id/submit             → queues AI for needsHeadcount photos → visit
+GET    /stats                         (admin) → { totalVisits, completed, processing, schools, students, photos, byCity[], recent[] }
+
+visit (as returned) adds: status ('draft'|'processing'|'completed'), headcount (max AI count), photoCount, cityName, district, staffName
+Auth: Bearer token. A 401 sends the user back to /login.
+```
+
+---
+
+## 11. Scale & Storage Estimate
+
+| Item | Estimate |
+|---|---|
+| Schools | 6,000 |
+| Photos | ~90k – 1.08 lakh |
+| Size per photo (compressed) | ~300–500 KB |
+| **Total storage** | **~40–55 GB** (+ thumbnails ~3–5 GB) |
+| AI inference | ~1 lakh images, batch on CPU is fine |
+
+- Always serve **thumbnails** in lists, the map and the gallery. Load the full image only when clicked.
+- Use pagination / server-side filtering everywhere. Never load 6000 rows with photos at once.
+
+---
+
+## 12. Work Split
+
+| Area | Owner |
+|---|---|
+| Dashboard, Map view, Activity view, charts | **Me (Client)** |
+| Field capture PWA (camera, GPS, compression, offline) | **Me (Client)** |
+| Export buttons / download UI | **Me (Client)** |
+| Auth, APIs, DB, master data import | Colleague (Server) |
+| Storage, pre-signed uploads, queue | Colleague (Server) |
+| Python AI counting service | Colleague / me, TBD |
+| Excel / PPT generation (background jobs) | Colleague (Server) |
+
+**First thing to agree on:** the API contract (endpoints + JSON shapes), so both sides can build in parallel. I can use mock data until the APIs are ready.
+
+---
+
+## 13. Phased Roadmap
+
+| Phase | Scope |
+|---|---|
+| **0. UX (done)** | Penpot: foundations, IA, wireframes, hi-fi desktop + mobile, clickable flows |
+| **0.5 Frontend (done, on mock API)** | Login, staff visit flow (details → photos → headcount → AI summary), admin dashboard, visits, detail, map, users |
+| **1. Foundation** | Backend: auth + 2 roles, users, cities import (Excel → DB), visit + photo upload API, storage |
+| **2. Monitoring** | Dashboard KPIs, charts, **Map view**, **Activity view** with filters |
+| **3. AI** | YOLO counting service, queue, bounding-box overlay, auto-flagging, verify/flag flow |
+| **4. Reports** | Excel + PPT exports with summary, background jobs, polish, performance |
+
+---
+
+## 14. Open Questions for the Client
+
+Asked in the Penpot file ("★ Start here" page and page 01):
+
+1. Do they have a **school master list** (UDISE code, name, district, block, **lat/long**)?
+2. Does the Admin only **verify** the AI count, or also set a **final count**?
+3. Is the AI count used for **billing/payments**? (This decides how strict verification must be.)
+4. Language: **English only, or Odia too**?
+5. PPT format: **one slide per school** or per district? Should we use a branded template?
+6. Exact **district list** (18 or 20? Is it a programme-specific grouping?)
+7. **Programme name and logo** for the app and reports.
+8. **Data retention** period for the photos?
+
+Also still to confirm:
+- The client asked for a **login picture**. We dropped it (GPS + time come from the photos instead). Confirm this is OK.
+- Hosting: our cloud or **government cloud / NIC**? Any data-residency rules?
+- **Timeline**, and when does the field activity start?
+- The **city Excel**: which columns (city, district, …)? Does it also list schools? (If yes, school name becomes a pick list.)
+- **Colours, logo and assets** for the app.
+- The client also asked for **collateral / closing photos** and a **principal-signed letter**. The simplified flow only has Banner / Leaflet / Place / Headcount. Add "Letter" (and "Closing") as photo types if still needed — it is one line in `src/constants/visit.js`.
+
+---
+
+## 15. Frontend (React) — how it is built
+
+**Run:** `npm install` → `npm run dev` (open the URL, app uses `#/` routes). `npm run build` → static files in `dist/` (host anywhere). `npm run lint`.
+
+**Demo logins (mock mode):** `admin / admin123`, `staff / staff123`, `priya / staff123`. Mock data lives in the browser's localStorage (`mockdb-v1`); clear site data to reset.
+
+**Settings:** everything is in `src/config/config.js` (no `.env` files):
+- `useMock: true` → in-browser mock API. Set `false` and fill `apiUrl` once the backend is live.
+- `apiUrl`, `appName`, `mockAiDelay`.
+
+**Client branding:** colours are Tailwind tokens in `src/index.css` (`@theme { --color-brand-* }`); logo/icon in `public/icon.svg` and `src/assets/`.
+
+```text
+src/
+├── components/ui/        Button, Input, Select, Card, Badge, Modal, Spinner, EmptyState
+├── components/common/    PageHeader
+├── config/config.js      all app settings
+├── constants/visit.js    photo types, visit statuses, roles
+├── data/cities.json      city list (replace with the client's Excel)
+├── features/
+│   ├── auth/             AuthProvider, useAuth, RequireRole
+│   ├── visits/           VisitDetailsForm, PhotoCapture, PhotoGrid, HeadcountSummary, VisitDetail, VisitCard, useVisit
+│   ├── monitoring/       KpiTiles, CityTable, VisitsTable, Filters, VisitsMap
+│   └── users/            UserForm, UserTable
+├── hooks/useGeolocation.js
+├── layouts/              AdminLayout (sidebar), StaffLayout (mobile header)
+├── pages/                LoginPage, NotFoundPage, admin/*, staff/*
+├── routes/index.jsx      createHashRouter + role guards
+├── services/api/         client.js (fetch + token), auth/users/cities/visits.js, mock/
+└── utils/                compressImage.js (canvas → JPEG), format.js
+```
+
+Each API module exports the same functions for mock and real mode, so switching to the backend means changing only `useMock` in `config.js`.
