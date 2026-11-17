@@ -7,19 +7,27 @@ import { config } from "./src/config/config.js";
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const server = new URL(config.BASE_URL_SERVER);
 
-// Dev only: /server-api/* is forwarded to the PHP API from this PC, so a phone on an https tunnel
-// can log in too (no mixed-content block, and the phone doesn't need to be on the office LAN).
+// /server-api/* (config.API_PROXY) is forwarded to the PHP API from this PC, in `npm run dev` and `npm run preview`,
+// so a phone on an https tunnel works too (no mixed-content block, no need to be on the office LAN).
+// In production the web server does the same forwarding (docs/SERVER_API.md → Deploying).
+const proxyPath = config.API_PROXY || "/server-api";
 const serverApiProxy = {
-  "/server-api": {
+  [proxyPath]: {
     target: server.origin,
     changeOrigin: true,
-    rewrite: (path) => path.replace(/^\/server-api/, server.pathname.replace(/\/$/, "")),
+    rewrite: (path) => server.pathname.replace(/\/$/, "") + path.slice(proxyPath.length),
   },
 };
+// URLs the service worker caches: through the proxy path, or the server directly when API_PROXY is ''.
+const apiUrl = config.API_PROXY ? `${escapeRegExp(config.API_PROXY)}/` : `^${escapeRegExp(config.BASE_URL_SERVER)}/`;
 
 export default defineConfig({
   base: "./",
   server: {
+    host: true,
+    proxy: serverApiProxy,
+  },
+  preview: {
     host: true,
     proxy: serverApiProxy,
   },
@@ -91,7 +99,7 @@ export default defineConfig({
           },
           {
             // Visit photos (random file names, never change): keep the ones already viewed for offline use.
-            urlPattern: new RegExp(`^${escapeRegExp(config.BASE_URL_SERVER)}/uploads/`),
+            urlPattern: new RegExp(`${apiUrl}uploads/`),
             handler: "CacheFirst",
             options: {
               cacheName: "visit-photos",
@@ -101,7 +109,7 @@ export default defineConfig({
           },
           {
             // Real API reads: fresh when online, last saved copy when offline. Cleared on logout.
-            urlPattern: new RegExp(`^${escapeRegExp(config.BASE_URL_SERVER)}/`),
+            urlPattern: new RegExp(apiUrl),
             method: "GET",
             handler: "NetworkFirst",
             options: {

@@ -17,9 +17,9 @@ export const authStore = {
 }
 
 // ---- One axios instance for the server ----
-// In `npm run dev` requests go through Vite's /server-api proxy (vite.config.js), so the app also works
-// from a phone over an https tunnel that can't reach the office LAN directly.
-export const API_BASE = import.meta.env.DEV ? '/server-api' : config.BASE_URL_SERVER
+// Requests go through the same-site proxy path (config.API_PROXY), forwarded to the PHP API by the dev /
+// preview server (vite.config.js) or the production web server.
+export const API_BASE = config.API_PROXY || config.BASE_URL_SERVER
 
 // No fixed Content-Type: axios sends JSON for objects and multipart (with boundary) for FormData.
 // Calls resolve to the server's JSON body (see the response interceptor), hence the `any` type.

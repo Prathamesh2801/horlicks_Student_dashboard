@@ -16,7 +16,7 @@
 | Users (admin) | [`src/services/api/users.service.js`](../src/services/api/users.service.js) → `Admin/user.php` |
 | Visits (staff + admin) | [`src/services/api/visits.service.js`](../src/services/api/visits.service.js) → `Staff/visit.php`: create (multipart), list (all pages), get one, cities, dashboard numbers |
 | Offline drafts + upload queue | [`src/services/drafts/`](../src/services/drafts): visits are built on the phone (IndexedDB) and uploaded in one request on **Submit**; without internet they wait and upload by themselves when back online |
-| Dev proxy | In `npm run dev`, calls go to `/server-api/…`, which Vite forwards to `BASE_URL_SERVER` (so phones on an https tunnel work). Production builds call `BASE_URL_SERVER` directly |
+| Proxy path | The app always calls **`/server-api/…`** on its own site (`API_PROXY` in `config.js`). `npm run dev` and `npm run preview` forward it to `BASE_URL_SERVER`; in production the web server must do the same, see [Deploying](#deploying-the-app-api-proxy). This avoids the browser blocking http API calls from an https page, and works for phones that aren't on the office LAN |
 
 **Field names.** The server uses `Full_Name`, `Role: "Admin"`, `Status: "Active"`; the services convert to the app's
 `{ username, name, role: 'admin' | 'staff', active, signedIn, createdAt }` and visits to `{ id, date, city, schoolName, staffName, lat, lng, photos: [{ type: 'normal' | 'headcount', url, ai }], headcount, aiFailed }`, so pages never see server field names. Photo links are built from `Path` (works through the dev proxy).
@@ -306,6 +306,32 @@ If the AI service fails for a photo, the visit and photo are still saved: that p
 `Cities` lists every configured city (including zero-visit ones) for the caller's scope, unaffected by the `city`/date filters, so it doubles as the drop-down source. `Total` = visits matching the filters (for paging). Photo `Url`s are public links with random file names.
 
 ---
+
+## Deploying the app (API proxy)
+
+The built app (`npm run build` → `dist/`) calls `/server-api/...` on the **same site** it is served from. The web server that hosts `dist/` must forward that path to the PHP API (keep the `Authorization` header, allow uploads up to ~64 MB).
+
+**Apache** (needs `mod_proxy` + `mod_proxy_http`), in the app's VirtualHost:
+
+```apache
+ProxyPass        /server-api/ http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/
+ProxyPassReverse /server-api/ http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/
+ProxyTimeout 900
+```
+
+**nginx**:
+
+```nginx
+location /server-api/ {
+    proxy_pass http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/;
+    client_max_body_size 64m;
+    proxy_read_timeout 900s;
+}
+```
+
+If the app and the API end up on the same domain (e.g. app at `/`, API at `/api/`), set `API_PROXY: '/api'` in `config.js` instead. If the API gets its own **https** domain with CORS for the app, set `API_PROXY: ''` and `BASE_URL_SERVER` to that https URL.
+
+The app is built with `base: './'` and a hash router, so `dist/` can be served from any folder; `/server-api` is resolved from the site root.
 
 ## Server setup & configuration (server side)
 

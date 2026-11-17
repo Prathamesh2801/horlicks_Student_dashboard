@@ -24,6 +24,17 @@ body {
   @apply bg-page text-gray-900 antialiased;
 }
 
+/* iPhone/iPad Safari zooms the page when a field with text under 16px is tapped.
+   Touch screens get 16px fields (desktop keeps text-sm). Pinch-zoom stays enabled for accessibility.
+   (Unlayered, so it wins over Tailwind's text-* utilities.) */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Our search boxes have their own clear (✕) button */
 input[type='search']::-webkit-search-cancel-button {
   -webkit-appearance: none;
