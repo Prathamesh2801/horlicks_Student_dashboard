@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MdClose } from 'react-icons/md'
 
-export default function Modal({ open, title, subtitle, onClose, wide, children }) {
+// placement 'top' keeps the bottom of the screen free (e.g. to point at the iPhone Safari toolbar).
+export default function Modal({ open, title, subtitle, onClose, wide, placement = 'auto', children }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => e.key === 'Escape' && onClose()
@@ -14,7 +15,7 @@ export default function Modal({ open, title, subtitle, onClose, wide, children }
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[1200] flex items-end justify-center bg-gray-900/50 p-3 sm:items-center sm:p-4"
+          className={`fixed inset-0 z-[1200] flex justify-center bg-gray-900/50 p-3 sm:p-4 ${placement === 'top' ? 'items-start pt-[max(0.75rem,env(safe-area-inset-top))]' : 'items-end sm:items-center'}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -25,9 +26,9 @@ export default function Modal({ open, title, subtitle, onClose, wide, children }
             aria-modal="true"
             aria-label={title}
             className={`max-h-[92dvh] w-full overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6 ${wide ? 'max-w-3xl' : 'max-w-md'}`}
-            initial={{ y: 24, opacity: 0 }}
+            initial={{ y: placement === 'top' ? -24 : 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 24, opacity: 0 }}
+            exit={{ y: placement === 'top' ? -24 : 24, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">

@@ -1,8 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { MdCloudDone, MdSystemUpdate, MdWifi, MdWifiOff } from 'react-icons/md'
+import { MdCheckCircle, MdCloudDone, MdSystemUpdate, MdWifi, MdWifiOff } from 'react-icons/md'
 import { Button } from '../../components/ui'
+import { installActions, useInstall } from './installStore'
 
 const subscribe = (cb) => {
   window.addEventListener('online', cb)
@@ -31,6 +32,7 @@ const Toast = ({ tone, icon: Icon, children }) => (
 // Offline / back-online notice, "ready to work offline", and "new version" prompt.
 export default function PwaStatus() {
   const online = useOnline()
+  const { justInstalled } = useInstall()
   const [backOnline, setBackOnline] = useState(false)
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -58,13 +60,19 @@ export default function PwaStatus() {
   }, [])
 
   useEffect(() => {
+    if (!justInstalled) return
+    const timer = setTimeout(installActions.clearJustInstalled, 6000)
+    return () => clearTimeout(timer)
+  }, [justInstalled])
+
+  useEffect(() => {
     if (!offlineReady) return
     const timer = setTimeout(() => setOfflineReady(false), 4000)
     return () => clearTimeout(timer)
   }, [offlineReady, setOfflineReady])
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-28 z-[1150] flex flex-col items-center gap-2 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-96 sm:items-stretch">
+    <div className="pointer-events-none fixed inset-x-3 bottom-40 z-[1150] flex flex-col items-center gap-2 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-96 sm:items-stretch">
       <AnimatePresence>
         {!online && (
           <Toast key="offline" tone="bg-amber-50 text-amber-900 ring-amber-200" icon={MdWifiOff}>
@@ -74,6 +82,11 @@ export default function PwaStatus() {
         {online && backOnline && (
           <Toast key="online" tone="bg-green-50 text-green-800 ring-green-200" icon={MdWifi}>
             Back online
+          </Toast>
+        )}
+        {justInstalled && (
+          <Toast key="installed" tone="bg-green-50 text-green-800 ring-green-200" icon={MdCheckCircle}>
+            <b>Installed!</b> Open My Workbench from your home screen.
           </Toast>
         )}
         {offlineReady && (

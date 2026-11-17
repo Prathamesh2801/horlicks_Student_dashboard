@@ -29,7 +29,11 @@ export default function LoginPage() {
       const u = await login(form.username, form.password)
       navigate(homePathFor(u.role), { replace: true })
     } catch (err) {
-      setError(err.message)
+      setError(
+        !err.status && !navigator.onLine
+          ? 'You’re offline. Signing in needs internet once; after that the app works offline.'
+          : err.message,
+      )
       setLoading(false)
     }
   }

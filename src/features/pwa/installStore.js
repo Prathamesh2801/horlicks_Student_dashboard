@@ -7,7 +7,7 @@ const DISMISS_KEY = 'pwa-install-dismissed-at'
 const DISMISS_DAYS = 7
 
 let deferredPrompt = null
-let state = { canPrompt: false, installed: isStandalone(), open: false }
+let state = { canPrompt: false, installed: isStandalone(), open: false, justInstalled: false }
 const listeners = new Set()
 const set = (patch) => {
   state = { ...state, ...patch }
@@ -22,7 +22,7 @@ if (typeof window !== 'undefined') {
   })
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null
-    set({ canPrompt: false, installed: true, open: false })
+    set({ canPrompt: false, installed: true, open: false, justInstalled: true })
   })
   window.matchMedia('(display-mode: standalone)').addEventListener('change', () => set({ installed: isStandalone() }))
 }
@@ -51,6 +51,7 @@ export function recentlyDismissed() {
 
 export const installActions = {
   open: () => set({ open: true }),
+  clearJustInstalled: () => set({ justInstalled: false }),
   close(remember = true) {
     if (remember) {
       try {
@@ -80,5 +81,5 @@ const subscribe = (l) => {
 export function useInstall() {
   const s = useSyncExternalStore(subscribe, () => state)
   const mode = modeOf(s)
-  return { mode, open: s.open, canInstall: mode !== 'installed' && mode !== 'unsupported' }
+  return { mode, open: s.open, justInstalled: s.justInstalled, canInstall: mode !== 'installed' && mode !== 'unsupported' }
 }

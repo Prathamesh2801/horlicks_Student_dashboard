@@ -275,7 +275,7 @@ Also still to confirm:
 
 **Run:** `npm install` → `npm run dev` (open the URL, app uses `#/` routes). `npm run build` → static files in `dist/` (host anywhere). `npm run lint`.
 
-**Login:** real accounts from the server. The first admins are `EMP001` / `EMP002` (created by the server's `setup.php`; passwords from the server `.env`, ask the server owner). Create everyone else under **Users**. No demo logins exist in the app. Sample visits live in this browser's localStorage (`mockdb-v3`); clear site data to reset them.
+**Login:** real accounts from the server. The first admins are `EMP001` / `EMP002` (created by the server's `setup.php`; passwords from the server `.env`, ask the server owner). Create everyone else under **Users**. No demo logins exist in the app. Visits and photos live on the device in IndexedDB (`my-workbench`: `visits`, `photos`); clear site data to reset the sample visits.
 
 **Settings:** everything is in `src/config/config.js` (no `.env` files):
 - `BASE_URL_SERVER`: the PHP API (`http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API`). In `npm run dev` the app calls `/server-api/…` and Vite forwards it there (works from phones on an https tunnel). Production builds call it directly, so serve the app over **http on the LAN** or put the API behind **https** (browsers block http calls from https pages).
@@ -307,7 +307,11 @@ Pages only import from `*.service.js`. When the server adds visit endpoints, rep
 
 **PWA (install + offline):** `src/features/pwa/`, configured in `vite.config.js`.
 - Installable on Android, iOS and desktop (manifest, PNG + maskable icons, `apple-touch-icon`, iOS meta tags). Icons are the client logo on navy (`#002F85`).
-- **Install sheet** opens by itself 4 s after load (at most once a week after "Not now"), or from **Install app** on the login page, the staff header and the admin sidebar. It picks the flow per device: one-tap **Install** where the browser supports it (Chrome / Edge / Samsung on Android and desktop); **Share → Add to Home Screen** steps on iOS (Safari, Chrome, others); **⋮ → Install app** steps on other Android browsers; **File → Add to Dock** on Mac Safari; "open in your browser" + copy link inside WhatsApp / Instagram / Facebook. Hidden once installed.
+- **Install sheet** opens by itself on a first visit, or from **Install app** on the login page, the staff header and the admin sidebar; closing it with ✕ keeps it closed for 7 days. Hidden once installed. Flow per device:
+  - **Android / desktop Chrome, Edge, Samsung:** waits for the browser's install event, then shows only **Install app** + ✕ (one tap opens the native install dialog; an "Installed!" notice follows). Falls back to ⋮ → Install app steps if the event never comes (e.g. Firefox).
+  - **iPhone / iPad:** 4 illustrated steps (Share → Add to Home Screen → keep "Open as Web App" on → Add → open from Home Screen), a bouncing arrow pointing at Safari's Share button (card moves to the top on iPhone so the toolbar stays visible), and a note that drafts live in the Home Screen app, not Safari (iOS keeps their storage separate).
+  - **In-app browsers** (WhatsApp, Instagram, Facebook): open in Safari/Chrome first + copy link. **Mac Safari:** File → Add to Dock.
 - **Offline:** the app shell is pre-cached; Google Fonts and OpenStreetMap tiles are cached as viewed; real-API `GET`s use network-first with a 7-day offline copy (cache `api`, cleared on logout). An offline / back-online notice is shown.
+- **Drafts on the device:** visits and full-quality photos are stored in **IndexedDB** (`src/utils/idb.js`), not localStorage (~5 MB), so a whole day of visits fits. Persistent storage is requested on the first visit so the phone doesn't clear it. The photo screen says "Saved on this phone". Signing in needs internet once (clear message when offline); after that staff can work fully offline. Drafts are kept on logout.
 - **Updates** use `registerType: 'prompt'`: a "new version, Reload" toast, so a visit in progress is never reloaded. Open tabs check for updates hourly.
-- Not yet: queueing photo uploads made while offline (needed once visit endpoints are live; sample visits already work offline). Login needs the server.
+- Next, once the server has visit endpoints: an upload queue that sends drafts/photos from IndexedDB when back online (Android can finish in the background; iPhone uploads while the app is open), with a "N waiting to upload" count.

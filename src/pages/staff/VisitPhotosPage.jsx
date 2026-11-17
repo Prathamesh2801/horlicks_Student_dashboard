@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
-import { MdGroups, MdPhotoCamera, MdUpload } from 'react-icons/md'
+import { MdCloudDone, MdGroups, MdPhotoCamera, MdUpload } from 'react-icons/md'
 import BottomBar from '../../components/common/BottomBar'
 import TopBar from '../../components/common/TopBar'
 import { Button, Modal, Spinner } from '../../components/ui'
@@ -144,6 +144,9 @@ export default function VisitPhotosPage() {
         <p className="mb-2 text-center text-xs text-gray-600">
           {photos.normal.length} normal · {photos.headcount.length} headcount photos
           {!photos.headcount.length && ' · add at least one headcount photo'}
+        </p>
+        <p className="mb-2 flex items-center justify-center gap-1 text-center text-[11px] text-green-700">
+          <MdCloudDone className="size-3.5" /> Saved on this phone. Works offline; you can close the app and continue later.
         </p>
         <Button
           variant="accent"

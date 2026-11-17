@@ -1,12 +1,12 @@
-// Sample visits for the screens the server doesn't cover yet (visits, photos, AI headcount, dashboard).
-// Stored in this browser only (localStorage). No users or passwords live here: login and users come from the server.
-// ponytail: localStorage caps at ~5 MB, so photos are stored as small thumbnails; the real API will store full files.
+// On-device visits for the screens the server doesn't cover yet (visits, photos, AI headcount, dashboard).
+// Stored in IndexedDB on this device, so drafts and full-quality photos keep working offline.
+// No users or passwords live here: login and users come from the server.
 import cities from '../../../data/cities.json'
 import { config } from '../../../config/config'
-import { compressImage } from '../../../utils/compressImage'
+import { idb, keepDataOnDevice } from '../../../utils/idb'
 import { authStore } from '../client'
 
-const DB_KEY = 'mockdb-v3' // v3 = visits only
+const OLD_LOCALSTORAGE_KEY = 'mockdb-v3' // previous version kept visits in localStorage; moved over once
 
 // Older versions also stored demo users with passwords: remove them.
 try {
@@ -18,7 +18,6 @@ try {
 }
 const cityById = Object.fromEntries(cities.map((c) => [c.id, c]))
 const uid = () => Math.random().toString(36).slice(2, 10)
-const delay = (ms = 250) => new Promise((r) => setTimeout(r, ms))
 const fail = (message) => Promise.reject(new Error(message))
 
 // Fake AI: a stable count per photo so reloads show the same number.
@@ -57,7 +56,7 @@ function seed() {
     const photos = types.map((type, j) => {
       const pid = `${id}p${j}`
       const ai = type !== 'headcount' ? null : status === 'processing' ? { status: 'processing', readyAt: now + 45000 } : { status: 'done', count: fakeCount(pid) }
-      return { id: pid, type, url: null, needsHeadcount: type === 'headcount', lat, lng, takenAt: created, ai }
+      return { id: pid, type, hasImage: false, needsHeadcount: type === 'headcount', lat, lng, takenAt: created, ai }
     })
     return {
       id,
@@ -77,24 +76,55 @@ function seed() {
   return { visits }
 }
 
-function save(db) {
-  try {
-    localStorage.setItem(DB_KEY, JSON.stringify(db))
-  } catch {
-    throw new Error('Mock storage is full. Clear site data to reset the demo.')
-  }
+const readDataUrl = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+
+// All visits on this device (photo images are stored separately, see attachImages).
+let ready
+async function allVisits() {
+  ready ??= (async () => {
+    // One-time move from the old localStorage store (photos there were small inline thumbnails).
+    let old = null
+    try {
+      old = JSON.parse(localStorage.getItem(OLD_LOCALSTORAGE_KEY))
+    } catch {
+      // unreadable: ignore
+    }
+    if (old?.visits) {
+      for (const v of old.visits) {
+        for (const p of v.photos) {
+          if (p.url) await idb.put('photos', { id: p.id, dataUrl: p.url })
+          p.hasImage = Boolean(p.url)
+          delete p.url
+        }
+        await idb.put('visits', v)
+      }
+      localStorage.removeItem(OLD_LOCALSTORAGE_KEY)
+    }
+    if ((await idb.getAll('visits')).length === 0) for (const v of seed().visits) await idb.put('visits', v)
+  })()
+  await ready
+  return idb.getAll('visits')
 }
 
-function load() {
-  try {
-    const db = JSON.parse(localStorage.getItem(DB_KEY))
-    if (db) return db
-  } catch {
-    // corrupt data: reseed below
-  }
-  const db = seed()
-  save(db)
-  return db
+async function findVisit(id) {
+  await allVisits()
+  const visit = await idb.get('visits', id)
+  if (!visit) throw new Error('Visit not found')
+  return visit
+}
+
+// Photo images are only loaded for a single visit, so lists stay fast.
+async function attachImages(visit) {
+  const photos = await Promise.all(
+    visit.photos.map(async (p) => (p.hasImage ? { ...p, url: (await idb.get('photos', p.id))?.dataUrl ?? null } : p)),
+  )
+  return { ...visit, photos }
 }
 
 const currentUser = () => authStore.get()?.user
@@ -120,16 +150,9 @@ function view(v) {
   }
 }
 
-function findVisit(db, id) {
-  const visit = db.visits.find((v) => v.id === id)
-  if (!visit) throw new Error('Visit not found')
-  return visit
-}
-
 // ---- visits ----
 export async function createVisit({ date, cityId, schoolName, lat, lng, accuracy }) {
-  await delay()
-  const db = load()
+  keepDataOnDevice()
   const me = currentUser()
   const visit = {
     id: uid(),
@@ -145,17 +168,15 @@ export async function createVisit({ date, cityId, schoolName, lat, lng, accuracy
     submittedAt: null,
     photos: [],
   }
-  db.visits.push(visit)
-  save(db)
+  await idb.put('visits', visit)
   return view(visit)
 }
 
 export async function listVisits({ mine, cityId, status, q, month } = {}) {
-  await delay()
   const query = q?.trim().toLowerCase()
   const me = currentUser()
-  return load()
-    .visits.map(view)
+  return (await allVisits())
+    .map(view)
     .filter((v) => !mine || v.staffId === me?.username)
     .filter((v) => !cityId || v.cityId === cityId)
     .filter((v) => !status || v.status === status)
@@ -165,42 +186,35 @@ export async function listVisits({ mine, cityId, status, q, month } = {}) {
 }
 
 export async function getVisit(id) {
-  await delay(150)
-  return view(findVisit(load(), id))
+  return view(await attachImages(await findVisit(id)))
 }
 
+// file is already compressed by the photo page (max 1600 px JPEG), so it is stored as-is.
 export async function uploadPhoto(visitId, { file, type, lat, lng, takenAt }) {
-  const thumb = await compressImage(file, 480, 0.6)
-  const url = await new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.readAsDataURL(thumb)
-  })
-  const db = load()
-  const photo = { id: uid(), type, url, needsHeadcount: type === 'headcount', lat, lng, takenAt, ai: null }
-  findVisit(db, visitId).photos.push(photo)
-  save(db)
+  const visit = await findVisit(visitId)
+  const photo = { id: uid(), type, hasImage: true, needsHeadcount: type === 'headcount', lat, lng, takenAt, ai: null }
+  await idb.put('photos', { id: photo.id, dataUrl: await readDataUrl(file) })
+  visit.photos.push(photo)
+  await idb.put('visits', visit)
   return photo
 }
 
 export async function deletePhoto(visitId, photoId) {
-  const db = load()
-  const visit = findVisit(db, visitId)
+  const visit = await findVisit(visitId)
   visit.photos = visit.photos.filter((p) => p.id !== photoId)
-  save(db)
+  await idb.put('visits', visit)
+  await idb.delete('photos', photoId)
 }
 
 export async function submitVisit(id) {
-  await delay()
-  const db = load()
-  const visit = findVisit(db, id)
+  const visit = await findVisit(id)
   if (!visit.photos.some((p) => p.needsHeadcount)) return fail('Add at least one headcount photo')
   const readyAt = Date.now() + config.mockAiDelay
   visit.submittedAt = new Date().toISOString()
   visit.photos.forEach((p) => {
     if (p.needsHeadcount) p.ai = { status: 'processing', readyAt }
   })
-  save(db)
+  await idb.put('visits', visit)
   return view(visit)
 }
 
