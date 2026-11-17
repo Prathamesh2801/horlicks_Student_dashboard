@@ -9,9 +9,9 @@ import { installActions, useInstall } from '../features/pwa'
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: MdDashboard, end: true },
+  { to: '/admin/users', label: 'Users', icon: MdPerson },
   { to: '/admin/visits', label: 'Visits', icon: MdFormatListBulleted },
   { to: '/admin/map', label: 'Map', icon: MdMap },
-  { to: '/admin/users', label: 'Users', icon: MdPerson },
 ]
 
 function Sidebar({ onNavigate }) {

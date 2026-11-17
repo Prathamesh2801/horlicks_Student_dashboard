@@ -21,11 +21,16 @@ export const authStore = {
 // from a phone over an https tunnel that can't reach the office LAN directly.
 export const API_BASE = import.meta.env.DEV ? '/server-api' : config.BASE_URL_SERVER
 
+// No fixed Content-Type: axios sends JSON for objects and multipart (with boundary) for FormData.
+// Calls resolve to the server's JSON body (see the response interceptor), hence the `any` type.
+/** @type {any} */
 export const api = axios.create({
   baseURL: API_BASE,
   timeout: 20000,
-  headers: { 'Content-Type': 'application/json' },
 })
+
+// Full link for a server file path like "uploads/visits/12/abc.jpg" (goes through the dev proxy too).
+export const fileUrl = (path) => (path ? `${API_BASE}/${path.replace(/^\//, '')}` : null)
 
 // Send the login token on every request (unless the caller set its own).
 api.interceptors.request.use((req) => {
@@ -34,7 +39,21 @@ api.interceptors.request.use((req) => {
   return req
 })
 
-const FIELD_LABELS = { username: 'Username', full_name: 'Full name', password: 'Password', role: 'Role', status: 'Status' }
+const FIELD_LABELS = {
+  username: 'Username',
+  full_name: 'Full name',
+  password: 'Password',
+  role: 'Role',
+  status: 'Status',
+  visit_date: 'Date',
+  city: 'City',
+  school_name: 'School name',
+  latitude: 'Location',
+  longitude: 'Location',
+  photos: 'Photos',
+  normal_photos: 'Normal photos',
+  ai_photos: 'Headcount photos',
+}
 
 // Turn any failure into an Error with a message that can be shown to the user as-is.
 function toError(err) {
@@ -45,6 +64,8 @@ function toError(err) {
       err.code === 'ECONNABORTED'
         ? 'The server took too long to respond. Please try again.'
         : 'Can’t reach the server. Check your internet connection.'
+  } else if (res.status === 413) {
+    message = 'The photos are too large to upload together. Remove a few and try again.'
   } else {
     message = res.data?.Message || `Request failed (${res.status})`
   }

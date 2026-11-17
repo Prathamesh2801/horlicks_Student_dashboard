@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import PageHeader from '../../components/common/PageHeader'
-import { Card, fieldClass, Spinner } from '../../components/ui'
+import { MdCloudOff } from 'react-icons/md'
+import { Card, EmptyState, fieldClass, Spinner } from '../../components/ui'
 import { CityChart, KpiTiles, VisitsTable } from '../../features/monitoring'
 import { getStats } from '../../services/api/visits.service'
 import { formatMonth, formatTime, monthISO } from '../../utils/format'
@@ -9,11 +10,20 @@ import { formatMonth, formatTime, monthISO } from '../../utils/format'
 export default function DashboardPage() {
   const [month, setMonth] = useState(monthISO())
   const [stats, setStats] = useState(null)
+  const [error, setError] = useState(null)
 
   // Live totals: refresh every 30 s.
   useEffect(() => {
     let live = true
-    const load = () => getStats({ month }).then((s) => live && setStats({ ...s, loadedAt: new Date().toISOString() }))
+    const load = () =>
+      getStats({ month }).then(
+        (s) => {
+          if (!live) return
+          setStats({ ...s, loadedAt: new Date().toISOString() })
+          setError(null)
+        },
+        (e) => live && setError(e.message),
+      )
     load()
     const timer = setInterval(load, 30000)
     return () => {
@@ -38,7 +48,9 @@ export default function DashboardPage() {
           />
         }
       />
-      {!stats ? (
+      {error && !stats ? (
+        <EmptyState icon={MdCloudOff} title="Couldn’t load the dashboard" text={error} />
+      ) : !stats ? (
         <Spinner className="mx-auto mt-10 size-6 text-brand-700" />
       ) : (
         <>

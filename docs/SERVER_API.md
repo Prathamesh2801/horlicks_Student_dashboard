@@ -1,6 +1,6 @@
 # Server API reference: Horlicks School Tribes API
 
-> **Saved copy** of the server team's docs, taken **17 Nov 2026** (API **v1.1.1**).
+> **Saved copy** of the server team's docs, taken **17 Nov 2026** (API **v1.2.0**).
 > Live, always-current version: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 > (it also has a *Try it* console). If this copy and the live page differ, **the live page wins**: update this file.
 
@@ -14,11 +14,12 @@
 | HTTP client | axios instance in [`src/services/api/client.js`](../src/services/api/client.js): adds `Authorization: Bearer <token>`, turns server errors into readable messages, sends the user back to login on `401` |
 | Login / logout | [`src/services/api/auth.service.js`](../src/services/api/auth.service.js) → `auth.php` |
 | Users (admin) | [`src/services/api/users.service.js`](../src/services/api/users.service.js) → `Admin/user.php` |
-| Not on the server yet | Visits, photos, AI headcount, dashboard stats, cities: [`visits.service.js`](../src/services/api/visits.service.js) / [`cities.service.js`](../src/services/api/cities.service.js) use in-browser sample data until the endpoints exist |
+| Visits (staff + admin) | [`src/services/api/visits.service.js`](../src/services/api/visits.service.js) → `Staff/visit.php`: create (multipart), list (all pages), get one, cities, dashboard numbers |
+| Offline drafts + upload queue | [`src/services/drafts/`](../src/services/drafts): visits are built on the phone (IndexedDB) and uploaded in one request on **Submit**; without internet they wait and upload by themselves when back online |
 | Dev proxy | In `npm run dev`, calls go to `/server-api/…`, which Vite forwards to `BASE_URL_SERVER` (so phones on an https tunnel work). Production builds call `BASE_URL_SERVER` directly |
 
 **Field names.** The server uses `Full_Name`, `Role: "Admin"`, `Status: "Active"`; the services convert to the app's
-`{ username, name, role: 'admin' | 'staff', active, signedIn, createdAt }` so pages never see server field names.
+`{ username, name, role: 'admin' | 'staff', active, signedIn, createdAt }` and visits to `{ id, date, city, schoolName, staffName, lat, lng, photos: [{ type: 'normal' | 'headcount', url, ai }], headcount, aiFailed }`, so pages never see server field names. Photo links are built from `Path` (works through the dev proxy).
 
 **First login.** `setup.php` creates two admins, **`EMP001`** and **`EMP002`**. Their passwords come from the server's `.env`
 (`SEED_EMP001_PASSWORD`, `SEED_EMP002_PASSWORD`) and are **not** stored in this app. Ask the server owner. After the first
@@ -225,6 +226,87 @@ Same response as Update; `Session_Ended` is `true` when disabling.
 
 ---
 
+## Staff · Visits: `/Staff/visit.php`
+
+A visit = date, city, school name, GPS location and photos. Available to **Staff and Admin**.
+**Staff only ever see their own visits; Admin sees all** (and can narrow with `username`).
+The city drop-down is the `VISIT_CITIES` array in the server's `config.php`; the same list comes back on every GET.
+Photos come in two lists: **normal** (stored only) and **AI** (stored and sent to the Person Counter service; the number it returns is saved as that photo's `Face_Count`).
+
+### Create visit: `POST /Staff/visit.php` (`multipart/form-data`)
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `visit_date` | text | Yes | `YYYY-MM-DD`, a real date, not in the future |
+| `city` | text | Yes | Must exactly match one of the cities in `Cities` |
+| `school_name` | text | Yes | 2–150 characters |
+| `latitude` | number | Yes | −90 to 90 |
+| `longitude` | number | Yes | −180 to 180 |
+| `normal_photos[]` | files | * | Stored only |
+| `ai_photos[]` | files | * | Stored and counted by the AI service |
+
+\* At least one photo in total. Each photo JPG/PNG/WEBP/BMP, up to `MAX_PHOTO_MB` MB; each list up to `MAX_PHOTOS_PER_TYPE` photos.
+
+```bash
+curl -X POST "BASE/Staff/visit.php" -H "Authorization: Bearer <token>" \
+  -F "visit_date=2026-11-17" -F "city=Mumbai" -F "school_name=Sunrise Public School" \
+  -F "latitude=19.0760" -F "longitude=72.8777" \
+  -F "normal_photos[]=@gate.jpg" -F "ai_photos[]=@assembly.jpg"
+```
+
+**201 Created**
+
+```json
+{
+  "Status": true,
+  "Message": "Visit created successfully",
+  "Data": {
+    "Visit_ID": 12, "Username": "EMP003", "Staff_Name": "Asha Patil",
+    "Visit_Date": "2026-11-17", "City": "Mumbai", "School_Name": "Sunrise Public School",
+    "Latitude": 19.076, "Longitude": 72.8777,
+    "Normal_Photos": [ { "Photo_ID": 31, "Path": "uploads/visits/12/9f2c….jpg", "Url": "http://…/uploads/visits/12/9f2c….jpg" } ],
+    "AI_Photos": [ { "Photo_ID": 33, "Path": "uploads/visits/12/c41a….jpg", "Url": "http://…", "Face_Count": 27, "AI_Status": "Done" } ],
+    "Total_Face_Count": 27,
+    "Created_AT": "2026-11-17 11:45:10"
+  }
+}
+```
+
+If the AI service fails for a photo, the visit and photo are still saved: that photo gets `"Face_Count": null`, `"AI_Status": "Failed"`, and a `Warnings` array explains why. The count is the number of people the service detects (`total_persons`).
+
+| Status | When |
+|---|---|
+| 400 | `Validation failed` + `Errors` keyed by field (`visit_date`, `city`, `school_name`, `latitude`, `longitude`, `photos`, `normal_photos`, `ai_photos`) |
+| 413 | Upload bigger than PHP's `post_max_size` |
+| 500 | Server error; nothing is saved (visit row and files rolled back) |
+
+### List / get visits: `GET /Staff/visit.php`
+
+| Query | Description |
+|---|---|
+| `visit_id` | Only this visit (`404` if it doesn't exist or isn't yours); `Data` is then one object |
+| `city` | Only this city |
+| `date_from`, `date_to` | `YYYY-MM-DD`, inclusive |
+| `username` | Admin only: one user's visits |
+| `limit`, `offset` | Paging; `limit` 1–100 (default 20) |
+
+**200**
+
+```json
+{
+  "Status": true,
+  "Month": "2026-11",
+  "Cities": [ { "City": "Mumbai", "This_Month_Visits": 4, "Total_Visits": 19 } ],
+  "Totals": { "This_Month_Visits": 4, "Total_Visits": 26 },
+  "Total": 4, "Limit": 20, "Offset": 0,
+  "Data": [ { "Visit_ID": 12, "…": "same visit object as in Create visit" } ]
+}
+```
+
+`Cities` lists every configured city (including zero-visit ones) for the caller's scope, unaffected by the `city`/date filters, so it doubles as the drop-down source. `Total` = visits matching the filters (for paging). Photo `Url`s are public links with random file names.
+
+---
+
 ## Server setup & configuration (server side)
 
 ### `GET /setup.php`
@@ -243,6 +325,9 @@ One-time installer: creates the database and `login_tbl`, and inserts the defaul
 | `TOKEN_TTL_SECONDS` | `2592000` | Token lifetime (30 days) |
 | `TRUST_PROXY` | `false` | Trust `X-Forwarded-For` for the client IP |
 | `PERSON_COUNTER_API_URL` | `http://192.168.1.16:8000` | External **Person Counter** (AI headcount) service; its docs are at `/docs` |
+| `PERSON_COUNTER_TIMEOUT` | `60` | Seconds to wait for the Person Counter, per AI photo |
+| `MAX_PHOTOS_PER_TYPE` | `10` | Max photos in each of `normal_photos` and `ai_photos` |
+| `MAX_PHOTO_MB` | `10` | Max size of one photo (PHP `upload_max_filesize` / `post_max_size` must be at least as large) |
 | `SETUP_ENABLED` | `true` | Allow `setup.php` |
 | `SEED_EMP001_PASSWORD`, `SEED_EMP002_PASSWORD` | - | Initial admin passwords used by `setup.php` |
 
@@ -258,23 +343,32 @@ One-time installer: creates the database and `login_tbl`, and inserts the defaul
 | `Status` | ENUM | `Active` (default) / `Inactive` (cannot log in) |
 | `Updated_AT`, `Created_AT` | DATETIME | Automatic |
 
+### `visit_tbl` / `visit_photo_tbl`
+
+| Table | Columns |
+|---|---|
+| `visit_tbl` | `Visit_ID` (PK), `Username` (FK `login_tbl`), `Visit_Date`, `City` VARCHAR(50), `School_Name` VARCHAR(150), `Latitude`/`Longitude` DECIMAL(10,7), `Created_AT` |
+| `visit_photo_tbl` | `Photo_ID` (PK), `Visit_ID` (FK, deleted with the visit), `Photo_Type` `Normal`/`AI`, `File_Path` (e.g. `uploads/visits/12/<random>.jpg`), `Face_Count` (AI only, `NULL` if failed), `AI_Status` `Done`/`Failed` |
+
+Existing installs: run `setup.php` again to create the new tables (safe to repeat). Photos are saved in `uploads/`.
+
 New protected endpoints include `function.php` and call `verifyTokenAndGetData()` (returns `['username' => …, 'role' => …]` or sends the `401` itself).
 
 ## Changelog (server)
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-11-17 | 1.2.0 | Added `Staff/visit.php`: create a visit (multipart, normal + AI photos with face count from the Person Counter) and list/get visits (Staff own, Admin all) with a `Cities` array of this-month/total counts. City list in `config.php` (`VISIT_CITIES`). New tables `visit_tbl`, `visit_photo_tbl`, `uploads/` folder, `.env` keys `PERSON_COUNTER_TIMEOUT`, `MAX_PHOTOS_PER_TYPE`, `MAX_PHOTO_MB` |
 | 2026-11-17 | 1.1.1 | Added `PERSON_COUNTER_API_URL` to `.env` (external Person Counter service) |
 | 2026-11-17 | 1.1.0 | Added `Admin/user.php` (list/get, create, update, enable/disable; Admins only), Try-it console, PUT body support, Authorization header pass-through |
 | 2026-11-17 | 1.0.0 | Initial docs: login/logout by `Username`, config in `.env`, header-only tokens, logout at `POST auth.php?do=logout`, proper status codes, log redaction |
 
-## Still needed from the server (for this app)
+## Questions / still needed from the server (for this app)
 
-These screens run on sample data until the endpoints exist (shapes the frontend expects are in `PROJECT_IDEA.md` §10):
-
-- [ ] Cities list (from the client's Excel)
-- [ ] Visits: create, list (filters: mine, city, status, search, month), get one
-- [ ] Photos: upload (`normal` / `headcount`, GPS + time), delete
-- [ ] Submit visit → send headcount photos to the Person Counter service (`PERSON_COUNTER_API_URL`) → store counts
-- [ ] Dashboard stats (by month)
-- [ ] Excel / PPT export
+- [ ] **`VISIT_CITIES`**: the docs' example shows Mumbai/Pune/Delhi; it needs the client's **Odisha** city list.
+- [ ] **`Total_Face_Count`**: is it the **sum** of all AI photos or the **highest** single photo? The same children appear in several class photos, so summing over-counts (the plan was "highest"). The app shows the server's value as-is.
+- [ ] **Dashboard stats endpoint** (by month, by city): today the app loads every visit and adds up in the browser. Fine for now, slow at 6,000 visits.
+- [ ] **`search`** param on `GET visit.php` (school / staff name): today the admin list filters in the browser.
+- [ ] Optional: a `District` per city, and visit **edit/delete** for admins.
+- [ ] Excel / PPT export (server-side).
+- [ ] Production: **HTTPS** + public domain for the API (needed for installing the app and for phones on mobile data).

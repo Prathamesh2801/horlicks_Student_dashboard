@@ -6,6 +6,4 @@ export const config = {
   appName: 'My Workbench',
   // Schools in the programme, for the "x% of 6,000" coverage figure.
   totalSchools: 6000,
-  // Sample visits only: delay before the fake AI headcount comes back (ms).
-  mockAiDelay: 3000,
 }

@@ -1,3 +1,4 @@
+import { SortHeader } from '../../../components/table'
 import { Avatar, Badge } from '../../../components/ui'
 import { formatDate } from '../../../utils/format'
 
@@ -28,19 +29,21 @@ const SignedInDot = ({ user }) =>
   user.signedIn ? <span className="size-2 shrink-0 rounded-full bg-green-500" title="Signed in now" aria-label="Signed in now" /> : null
 const StatusBadge = ({ active }) => <Badge tone={active ? 'green' : 'red'}>{active ? 'Active' : 'Disabled'}</Badge>
 
-// Table on tablet/desktop, cards on phones. Render inside a Card with p-0.
-export default function UserTable({ users, currentUsername, onToggleActive, onResetPassword }) {
+// Table on tablet/desktop, cards on phones. Render inside a Card.
+// table (optional): useTableState() result, makes the headers sortable (fields match USER_SORT).
+export default function UserTable({ users, currentUsername, onToggleActive, onResetPassword, table }) {
   const actionProps = { onToggleActive, onResetPassword }
+  const h = (label, field, className, firstDesc) => <SortHeader label={label} field={field} table={table} className={className} firstDesc={firstDesc} />
   return (
     <>
       <table className="hidden w-full text-left text-sm md:table">
         <thead className="bg-page text-xs font-semibold uppercase tracking-wide text-gray-500">
           <tr>
-            <th className="px-5 py-3">Name</th>
-            <th className="px-3 py-3">Username</th>
-            <th className="px-3 py-3">Role</th>
-            <th className="hidden px-3 py-3 lg:table-cell">Created</th>
-            <th className="px-3 py-3">Status</th>
+            {h('Name', 'name', 'px-5 py-3')}
+            {h('Username', 'username')}
+            {h('Role', 'role')}
+            {h('Created', 'created', 'hidden px-3 py-3 lg:table-cell', true)}
+            {h('Status', 'status')}
             <th className="px-3 py-3">Actions</th>
           </tr>
         </thead>

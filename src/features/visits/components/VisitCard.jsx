@@ -20,7 +20,7 @@ export default function VisitCard({ visit, to }) {
         <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-600">
           <VisitStatusBadge status={visit.status} />
           <span className="inline-flex items-center gap-1">
-            <MdPhotoLibrary /> {visit.photoCount} photos
+            <MdPhotoLibrary /> {visit.photoCount} photo{visit.photoCount === 1 ? '' : 's'}
           </span>
           <span className="inline-flex items-center gap-1">
             <MdGroups /> {formatNumber(visit.headcount)} students

@@ -1,6 +1,6 @@
 # Odisha School Activity AI Dashboard: Project Idea
 
-> Status: **React frontend built.** Login + users run on the **real server API** (v1.1.1, see `docs/SERVER_API.md`); visits/photos/dashboard still use in-browser sample data until those endpoints exist. AI face API not connected yet. Awaiting client answers (§14) and the client's colours/assets.
+> Status: **React frontend built and connected to the server API v1.2.0** (`docs/SERVER_API.md`): login, users, visits with photos + AI face count (Person Counter on the server). Visits are drafted offline on the phone and uploaded on Submit (auto-upload when back online). Open questions for the server are listed at the end of `docs/SERVER_API.md`. Awaiting client answers (§14) and the client's colours/assets.
 > Design (Penpot, final UI v2, implemented 2026-11-16; PDF export in `design-export/`): https://design.penpot.app/?screen=workspace&team-id=cc32ce3d-bd54-8151-8007-eabd223f5fb7&file-id=b55064db-d93d-80f9-8008-de1fcbfe1940
 > Owners: Client (React) is mine. Server, APIs and AI belong to a colleague (or me, not decided yet).
 
@@ -54,7 +54,7 @@ Only **two roles**: `admin` and `staff`.
 | Field | Type | Notes |
 |---|---|---|
 | Date | Date | Typed/picked by staff (defaults to today) |
-| City | From list | Picked from the client's Excel list of cities (→ `src/data/cities.json` for now) |
+| City | From list | From the server's `VISIT_CITIES` (`config.php`), returned by `GET Staff/visit.php`; cached on the phone for offline drafts |
 | School name | Text | Typed by staff |
 | Lat / long | GPS | Captured **automatically** when the visit starts and with every photo. The user cannot type it in |
 | Photos | ~10–18 | Two groups: **Normal** (banner, leaflet, marketing, other activity) and **Headcount** (5–6 class photos). Native camera or upload from the device |
@@ -183,24 +183,20 @@ photos:    { _id, visitId, type: 'normal'|'headcount',
 ```
 > Put a `2dsphere` index on visit location if map/distance queries are needed server-side.
 
-**API contract.** Live: auth + users are on the server, with server field names (`Full_Name`, `Role`, `Status`); see **`docs/SERVER_API.md`** (`auth.php`, `Admin/user.php`). The services map them to the app's shapes. Still to build on the server: the visit endpoints below (the sample data in `src/services/api/mock/visits.mock.js` behaves like this):
+**API contract (live, v1.2.0).** Full reference: **`docs/SERVER_API.md`**. Server field names (`Full_Name`, `Visit_Date`, `AI_Photos`…) are mapped to app shapes inside `src/services/api/*.service.js`.
 
 ```text
-POST   /auth.php                      LIVE  { username, password } → { Token, Username, Full_Name, Role }
-POST   /auth.php?do=logout            LIVE
-GET|POST|PUT /Admin/user.php          LIVE  (admin) list / create / update / enable-disable users
-GET    /cities                        → [{ id, name, district }]
-POST   /visits                        (staff) { date, cityId, schoolName, lat, lng, accuracy } → visit
-GET    /visits?mine&cityId&status&q&month   → [visit]   (month = YYYY-MM)   (paginate on the real server)
-GET    /visits/:id                    → visit with photos[]
-POST   /visits/:id/photos             multipart: file, type: 'normal'|'headcount', lat, lng, takenAt → photo
-DELETE /visits/:id/photos/:photoId
-POST   /visits/:id/submit             → queues AI for headcount photos → visit (400 if none)
-GET    /stats?month                   (admin) → { totalVisits, completed, processing, schools, students, studentsThisWeek, photos, byCity[], recent[] }
-
-visit (as returned) adds: status ('draft'|'processing'|'completed'), headcount (max AI count), photoCount, cityName, district, staffName
+POST   /auth.php                 { username, password } → { Token, Username, Full_Name, Role }
+POST   /auth.php?do=logout
+GET|POST|PUT /Admin/user.php     (admin) list / create / update / enable-disable users
+POST   /Staff/visit.php          multipart: visit_date, city, school_name, latitude, longitude, normal_photos[], ai_photos[]
+                                 → visit with photos, Face_Count per AI photo, Total_Face_Count (AI runs during the request)
+GET    /Staff/visit.php          ?visit_id | city, date_from, date_to, username(admin), limit/offset
+                                 → { Cities[], Totals, Total, Data[] }  (staff: own visits, admin: all)
 Auth: Bearer token. A 401 sends the user back to /login.
 ```
+
+How the app uses it: visits are **drafted on the phone** (IndexedDB) and the whole visit is uploaded in one request on **Submit**. No signal → it waits ("Waiting to upload") and uploads by itself when back online. Dashboard numbers are added up in the browser from the visit list until the server has a stats endpoint.
 
 ---
 
@@ -275,11 +271,11 @@ Also still to confirm:
 
 **Run:** `npm install` → `npm run dev` (open the URL, app uses `#/` routes). `npm run build` → static files in `dist/` (host anywhere). `npm run lint`.
 
-**Login:** real accounts from the server. The first admins are `EMP001` / `EMP002` (created by the server's `setup.php`; passwords from the server `.env`, ask the server owner). Create everyone else under **Users**. No demo logins exist in the app. Visits and photos live on the device in IndexedDB (`my-workbench`: `visits`, `photos`); clear site data to reset the sample visits.
+**Login:** real accounts from the server. The first admins are `EMP001` / `EMP002` (created by the server's `setup.php`; passwords from the server `.env`, ask the server owner). Create everyone else under **Users**. No demo logins exist in the app. Uploaded visits come from the server. Drafts (not yet uploaded) live on the phone in IndexedDB (`my-workbench`: `drafts`, `photos`).
 
 **Settings:** everything is in `src/config/config.js` (no `.env` files):
 - `BASE_URL_SERVER`: the PHP API (`http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API`). In `npm run dev` the app calls `/server-api/…` and Vite forwards it there (works from phones on an https tunnel). Production builds call it directly, so serve the app over **http on the LAN** or put the API behind **https** (browsers block http calls from https pages).
-- `appName`, `totalSchools`, `mockAiDelay` (sample visits only).
+- `appName`, `totalSchools`.
 
 **Client branding:** Horlicks palette from the Penpot design as Tailwind tokens in `src/index.css` (`brand-*` navy, `accent-*` red, `sun-400`, `cream`, `page`); logo is the client's Horlicks wordmark + orange chevron, rebuilt as SVG from their envelope PDF (`raw-assets/`): `src/assets/horlicks-logo.svg` (navy, for light backgrounds) and `horlicks-logo-white.svg` (for navy backgrounds); app icon `public/icon.svg`. Client creatives are reviewed in `design-export/CLIENT-CREATIVES.md`.
 
@@ -289,7 +285,6 @@ src/
 ├── components/common/    PageHeader (admin), TopBar + BottomBar (staff phone), Logo
 ├── config/config.js      all app settings
 ├── constants/visit.js    photo types, visit statuses, roles
-├── data/cities.json      city list (replace with the client's Excel)
 ├── features/
 │   ├── auth/             AuthProvider, useAuth, RequireRole
 │   ├── visits/           VisitDetailsForm, PhotoGrid, HeadcountSummary, VisitDetail, VisitCard, useVisit
@@ -299,7 +294,8 @@ src/
 ├── layouts/              AdminLayout (sidebar), StaffLayout (mobile header)
 ├── pages/                LoginPage, NotFoundPage, admin/*, staff/*
 ├── routes/index.jsx      createHashRouter + role guards
-├── services/api/         client.js (axios + token + errors), auth.service, users.service (server); visits.service, cities.service (sample data for now), mock/visits.mock.js
+├── services/api/         client.js (axios + token + errors), auth.service, users.service, visits.service (all server)
+├── services/drafts/      draftStore.js (offline drafts in IndexedDB), uploadQueue.js (submit + auto-upload when online)
 └── utils/                compressImage.js (canvas → JPEG), format.js, downloadCsv.js
 ```
 
@@ -314,4 +310,4 @@ Pages only import from `*.service.js`. When the server adds visit endpoints, rep
 - **Offline:** the app shell is pre-cached; Google Fonts and OpenStreetMap tiles are cached as viewed; real-API `GET`s use network-first with a 7-day offline copy (cache `api`, cleared on logout). An offline / back-online notice is shown.
 - **Drafts on the device:** visits and full-quality photos are stored in **IndexedDB** (`src/utils/idb.js`), not localStorage (~5 MB), so a whole day of visits fits. Persistent storage is requested on the first visit so the phone doesn't clear it. The photo screen says "Saved on this phone". Signing in needs internet once (clear message when offline); after that staff can work fully offline. Drafts are kept on logout.
 - **Updates** use `registerType: 'prompt'`: a "new version, Reload" toast, so a visit in progress is never reloaded. Open tabs check for updates hourly.
-- Next, once the server has visit endpoints: an upload queue that sends drafts/photos from IndexedDB when back online (Android can finish in the background; iPhone uploads while the app is open), with a "N waiting to upload" count.
+- **Upload queue:** Submit uploads the whole visit (progress %, then "AI is counting…"). Without internet the visit is queued ("N waiting to upload") and sent automatically when back online, on app start and every minute while open (Android and iPhone both upload while the app is open). A server validation error marks the draft "Needs a fix" with the reason. Uploaded drafts are removed from the phone.

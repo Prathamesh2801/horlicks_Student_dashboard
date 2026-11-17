@@ -27,7 +27,7 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <MyVisitsPage /> },
       { path: 'visits/new', element: <NewVisitPage /> },
-      { path: 'visits/:id/photos', element: <VisitPhotosPage /> },
+      { path: 'drafts/:id', element: <VisitPhotosPage /> },
       { path: 'visits/:id', element: <VisitSummaryPage /> },
     ],
   },

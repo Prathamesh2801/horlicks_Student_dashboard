@@ -1,9 +1,15 @@
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Outlet, useLocation } from 'react-router'
+import { startUploadQueue } from '../services/drafts/uploadQueue'
 
 // Phone-first column. Each page renders its own TopBar / BottomBar.
 export default function StaffLayout() {
   const { pathname } = useLocation()
+
+  // Upload visits that were submitted without internet (on start, when back online, every minute).
+  useEffect(() => startUploadQueue(), [])
+
   return (
     <motion.main
       key={pathname}

@@ -1,7 +1,7 @@
-// Tiny IndexedDB helper: the on-device database for visits and photos (works offline, holds hundreds of MB,
-// unlike localStorage's ~5 MB). Stores: visits { id, ... }, photos { id, dataUrl }.
+// Tiny IndexedDB helper: the on-device database for visit drafts and their photos (works offline, holds
+// hundreds of MB, unlike localStorage's ~5 MB). Stores: drafts { id, ... }, photos { id, dataUrl }.
 const DB_NAME = 'my-workbench'
-const VERSION = 1
+const VERSION = 2 // v2: drafts waiting to upload to the server (v1 held sample visits, dropped)
 
 let dbPromise
 function openDb() {
@@ -9,8 +9,9 @@ function openDb() {
     const req = indexedDB.open(DB_NAME, VERSION)
     req.onupgradeneeded = () => {
       const db = req.result
-      if (!db.objectStoreNames.contains('visits')) db.createObjectStore('visits', { keyPath: 'id' })
-      if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'id' })
+      for (const name of [...db.objectStoreNames]) db.deleteObjectStore(name)
+      db.createObjectStore('drafts', { keyPath: 'id' })
+      db.createObjectStore('photos', { keyPath: 'id' })
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)

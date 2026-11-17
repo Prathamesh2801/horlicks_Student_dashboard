@@ -1,30 +1,40 @@
 import { Link, useNavigate } from 'react-router'
 import { MdChevronRight } from 'react-icons/md'
+import { SortHeader } from '../../../components/table'
+import { Badge } from '../../../components/ui'
 import { formatDate, formatNumber, formatShortDate } from '../../../utils/format'
-import { VisitStatusBadge } from '../../visits'
 
 function AiCount({ visit }) {
-  if (visit.status === 'processing') return <span className="font-semibold text-amber-600">counting…</span>
+  if (visit.headcount == null && visit.aiFailed) return <span className="font-semibold text-amber-600">—</span>
   return <span className="font-bold">{formatNumber(visit.headcount)}</span>
 }
 
-// Table on tablet/desktop, compact list on phones. Render inside a Card with p-0.
-export default function VisitsTable({ visits }) {
+function AiBadge({ visit }) {
+  const ai = visit.photos.filter((p) => p.type === 'headcount').length
+  if (!ai) return <Badge>No AI photos</Badge>
+  if (visit.aiFailed) return <Badge tone="amber">{visit.aiFailed} failed</Badge>
+  return <Badge tone="green">Counted</Badge>
+}
+
+// Table on tablet/desktop, compact list on phones. Render inside a Card.
+// table (optional): useTableState() result, makes the headers sortable.
+export default function VisitsTable({ visits, table }) {
   const navigate = useNavigate()
   const open = (v) => navigate(`/admin/visits/${v.id}`)
+  const h = (label, field, className, firstDesc) => <SortHeader label={label} field={field} table={table} className={className} firstDesc={firstDesc} />
 
   return (
     <>
       <table className="hidden w-full text-left text-sm md:table">
         <thead className="bg-page text-xs font-semibold uppercase tracking-wide text-gray-500">
           <tr>
-            <th className="px-5 py-3">Date</th>
-            <th className="px-3 py-3">School</th>
-            <th className="px-3 py-3">City</th>
-            <th className="hidden px-3 py-3 lg:table-cell">Staff</th>
-            <th className="hidden px-3 py-3 xl:table-cell">Photos</th>
-            <th className="px-3 py-3">AI count</th>
-            <th className="px-3 py-3">Status</th>
+            {h('Date', 'date', 'px-5 py-3', true)}
+            {h('School', 'school')}
+            {h('City', 'city')}
+            {h('Staff', 'staff', 'hidden px-3 py-3 lg:table-cell')}
+            {h('Photos', 'photos', 'hidden px-3 py-3 xl:table-cell', true)}
+            {h('AI count', 'count', undefined, true)}
+            {h('AI', 'ai', undefined, true)}
             <th className="w-10" aria-hidden="true" />
           </tr>
         </thead>
@@ -46,7 +56,7 @@ export default function VisitsTable({ visits }) {
                 <AiCount visit={v} />
               </td>
               <td className="px-3 py-3.5">
-                <VisitStatusBadge status={v.status} />
+                <AiBadge visit={v} />
               </td>
               <td className="pr-4 text-gray-400">
                 <MdChevronRight className="size-5" />
@@ -68,7 +78,7 @@ export default function VisitsTable({ visits }) {
               </div>
               <div className="flex flex-col items-end gap-1 text-sm">
                 <AiCount visit={v} />
-                <VisitStatusBadge status={v.status} />
+                <AiBadge visit={v} />
               </div>
               <MdChevronRight className="size-5 shrink-0 text-gray-400" />
             </Link>

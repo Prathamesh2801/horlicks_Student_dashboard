@@ -63,7 +63,7 @@ export default function VisitDetail({ visit, admin }) {
       <dl className="divide-y divide-gray-100">
         {admin && <Row label="School">{visit.schoolName}</Row>}
         <Row label="City">
-          {visit.cityName} · {visit.district}
+          {visit.cityName}
         </Row>
         <Row label="Visit date">{formatDate(visit.date)}</Row>
         <Row label="Staff">{visit.staffName}</Row>

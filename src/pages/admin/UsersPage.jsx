@@ -1,36 +1,51 @@
 import { useCallback, useEffect, useState } from 'react'
-import { MdAdd, MdCloudOff } from 'react-icons/md'
+import { MdAdd } from 'react-icons/md'
 import PageHeader from '../../components/common/PageHeader'
-import { Button, Card, EmptyState, Input, Modal, Spinner } from '../../components/ui'
+import { LoadError, NoResults, Pagination, RefreshBar, StaleBanner, TableSkeleton, TableToolbar, useTableState } from '../../components/table'
+import { Button, Card, Input, Modal, Select } from '../../components/ui'
 import { useAuth } from '../../features/auth'
-import { UserForm, UserTable } from '../../features/users'
+import { USER_SORT, UserForm, UserTable } from '../../features/users'
+import { useAsync } from '../../hooks/useAsync'
 import { createUser, listUsers, setUserActive, updateUser } from '../../services/api/users.service'
+import { formatNumber, formatTime } from '../../utils/format'
+
+const ROLE_FILTERS = [
+  { value: 'admin', label: 'Admins' },
+  { value: 'staff', label: 'Staff' },
+]
+const STATUS_FILTERS = [
+  { value: 'active', label: 'Active' },
+  { value: 'disabled', label: 'Disabled' },
+  { value: 'online', label: 'Signed in now' },
+]
+const SORT_OPTIONS = [
+  { value: 'name', label: 'Name A–Z' },
+  { value: '-name', label: 'Name Z–A' },
+  { value: '-created', label: 'Newest first' },
+  { value: 'created', label: 'Oldest first' },
+  { value: 'role', label: 'Role' },
+  { value: 'status', label: 'Active first' },
+]
+const statusMatches = (u, status) =>
+  !status || (status === 'active' ? u.active : status === 'disabled' ? !u.active : u.signedIn)
 
 export default function UsersPage() {
   const { user: me } = useAuth()
-  const [users, setUsers] = useState(null)
-  const [loadError, setLoadError] = useState(null)
+  const { data: users, error, loading, refreshing, loadedAt, reload } = useAsync(listUsers)
+  const table = useTableState({
+    rows: users,
+    filters: { role: '', status: '' },
+    defaultSort: 'name',
+    sortValue: USER_SORT,
+    searchText: (u) => `${u.name} ${u.username}`,
+    matches: (u, s) => (!s.role || u.role === s.role) && statusMatches(u, s.status),
+  })
   const [creating, setCreating] = useState(false)
   const [resetFor, setResetFor] = useState(null)
   const [newPassword, setNewPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [resetError, setResetError] = useState(null)
   const [notice, setNotice] = useState(null) // { tone: 'ok' | 'error', text }
-
-  const reload = useCallback(
-    () =>
-      listUsers().then(
-        (list) => {
-          setUsers(list)
-          setLoadError(null)
-        },
-        (err) => setLoadError(err.message),
-      ),
-    [],
-  )
-  useEffect(() => {
-    reload()
-  }, [reload])
 
   // Auto-hide the message.
   useEffect(() => {
@@ -81,7 +96,11 @@ export default function UsersPage() {
     <div className="space-y-4">
       <PageHeader
         title="Users"
-        subtitle="Create logins for admins and staff"
+        subtitle={
+          loading
+            ? 'Loading…'
+            : `${formatNumber(table.total)} of ${formatNumber(users?.length ?? 0)} user${users?.length === 1 ? '' : 's'}${loadedAt ? ` · updated ${formatTime(loadedAt)}` : ''}`
+        }
         action={
           <Button onClick={() => setCreating(true)}>
             <MdAdd className="size-5" /> New user
@@ -98,31 +117,52 @@ export default function UsersPage() {
         </p>
       )}
 
-      {loadError && !users ? (
-        <EmptyState
-          icon={MdCloudOff}
-          title="Couldn’t load users"
-          text={loadError}
-          action={
-            <Button variant="secondary" onClick={reload}>
-              Try again
-            </Button>
-          }
+      <TableToolbar table={table} placeholder="Search name or username" onRefresh={reload} refreshing={refreshing} sortOptions={SORT_OPTIONS}>
+        <Select
+          className="w-[calc(50%-0.25rem)] sm:w-36"
+          aria-label="Role"
+          placeholder="All roles"
+          value={table.state.role}
+          onChange={(e) => table.set({ role: e.target.value })}
+          options={ROLE_FILTERS}
         />
-      ) : !users ? (
-        <Spinner className="mx-auto mt-10 size-6 text-brand-700" />
+        <Select
+          className="w-[calc(50%-0.25rem)] sm:w-40"
+          aria-label="Status"
+          placeholder="All statuses"
+          value={table.state.status}
+          onChange={(e) => table.set({ status: e.target.value })}
+          options={STATUS_FILTERS}
+        />
+      </TableToolbar>
+
+      {error && users && <StaleBanner message={error} onRetry={reload} />}
+
+      {error && !users ? (
+        <LoadError message={error} onRetry={reload} />
       ) : (
         <Card className="overflow-hidden">
-          <UserTable
-            users={users}
-            currentUsername={me.username}
-            onToggleActive={toggleActive}
-            onResetPassword={(u) => {
-              setNewPassword('')
-              setResetError(null)
-              setResetFor(u)
-            }}
-          />
+          <RefreshBar active={refreshing && !loading} />
+          {loading ? (
+            <TableSkeleton />
+          ) : table.total === 0 ? (
+            <NoResults onClear={table.isFiltered ? table.reset : undefined} text={table.isFiltered ? undefined : 'No users yet.'} />
+          ) : (
+            <div className={`transition-opacity ${refreshing ? 'opacity-60' : ''}`}>
+              <UserTable
+                users={table.rows}
+                table={table}
+                currentUsername={me.username}
+                onToggleActive={toggleActive}
+                onResetPassword={(u) => {
+                  setNewPassword('')
+                  setResetError(null)
+                  setResetFor(u)
+                }}
+              />
+              <Pagination table={table} noun="users" />
+            </div>
+          )}
         </Card>
       )}
 

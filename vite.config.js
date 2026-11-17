@@ -90,6 +90,16 @@ export default defineConfig({
             },
           },
           {
+            // Visit photos (random file names, never change): keep the ones already viewed for offline use.
+            urlPattern: new RegExp(`^${escapeRegExp(config.BASE_URL_SERVER)}/uploads/`),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "visit-photos",
+              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             // Real API reads: fresh when online, last saved copy when offline. Cleared on logout.
             urlPattern: new RegExp(`^${escapeRegExp(config.BASE_URL_SERVER)}/`),
             method: "GET",

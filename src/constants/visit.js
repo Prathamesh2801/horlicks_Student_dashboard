@@ -6,24 +6,33 @@ export const PHOTO_TYPES = [
   { value: 'headcount', label: 'Headcount · AI' },
 ]
 
-// draft = photos being added, processing = AI counting, completed = all counts back
+// Server limit per photo type (MAX_PHOTOS_PER_TYPE in the server .env).
+export const MAX_PHOTOS_PER_TYPE = 10
+
+// draft / queued / failed = on the phone only; completed = uploaded to the server (AI count done).
 export const VISIT_STATUS = {
   draft: { label: 'Draft', tone: 'gray' },
-  processing: { label: 'AI counting', tone: 'amber' },
+  queued: { label: 'Waiting to upload', tone: 'amber' },
+  failed: { label: 'Needs a fix', tone: 'red' },
   completed: { label: 'Completed', tone: 'green' },
 }
 
-// Map pin colours per status
-export const STATUS_COLOR = { draft: '#9ca3af', processing: '#f5b82e', completed: '#16a34a' }
+// Map pin colours
+export const PIN_COLOR = { counted: '#16a34a', aiFailed: '#f5b82e' }
 
-// Visits list period filter
+// Visits list period filter → server date range
 export const PERIODS = [
   { value: 'this', label: 'This month' },
   { value: 'last', label: 'Last month' },
   { value: 'all', label: 'All time' },
 ]
 
-export const periodMonth = (period) => (period === 'this' ? monthISO() : period === 'last' ? monthISO(-1) : '')
+export function periodRange(period) {
+  if (period === 'all') return {}
+  const month = monthISO(period === 'last' ? -1 : 0)
+  const [y, m] = month.split('-').map(Number)
+  return { dateFrom: `${month}-01`, dateTo: `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}` }
+}
 
 export const ROLES = [
   { value: 'staff', label: 'Staff' },

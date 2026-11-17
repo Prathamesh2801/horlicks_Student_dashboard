@@ -1,40 +1,70 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { MdAdd, MdAssignment, MdInstallMobile, MdLogout } from 'react-icons/md'
+import { MdAdd, MdAssignment, MdCloudOff, MdCloudUpload, MdInstallMobile, MdLogout } from 'react-icons/md'
 import Logo from '../../components/common/Logo'
-import { EmptyState, Spinner } from '../../components/ui'
+import { Button, EmptyState, Spinner } from '../../components/ui'
 import { config } from '../../config/config'
 import { useAuth } from '../../features/auth'
 import { installActions, useInstall } from '../../features/pwa'
-import { VisitCard } from '../../features/visits'
+import { useDrafts, VisitCard } from '../../features/visits'
 import { listVisits } from '../../services/api/visits.service'
+import { uploadEvents, uploadQueued } from '../../services/drafts/uploadQueue'
 import { formatNumber, monthISO } from '../../utils/format'
 
 const RECENT = 5
 
+// A draft shown with the same card as an uploaded visit.
+const draftAsVisit = (d) => ({
+  ...d,
+  cityName: d.city,
+  status: d.state,
+  photoCount: d.photos.length,
+  headcount: null,
+})
+
 export default function MyVisitsPage() {
   const { user, logout } = useAuth()
   const { canInstall } = useInstall()
-  const [visits, setVisits] = useState(null)
+  const drafts = useDrafts(user.username)
+  const [visits, setVisits] = useState(null) // uploaded visits (server)
+  const [month, setMonth] = useState(null) // { visits, students } this month
+  const [loadError, setLoadError] = useState(null)
   const [showAll, setShowAll] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
-  const reload = useCallback(() => listVisits({ mine: 1 }).then(setVisits), [])
+  const reload = useCallback(
+    () =>
+      listVisits().then(
+        (all) => {
+          const thisMonth = all.filter((v) => v.date.startsWith(monthISO()))
+          setVisits(all)
+          setMonth({ visits: thisMonth.length, students: thisMonth.reduce((s, v) => s + (v.headcount ?? 0), 0) })
+          setLoadError(null)
+        },
+        (err) => setLoadError(err.message),
+      ),
+    [],
+  )
+
   useEffect(() => {
     reload()
+    // A queued visit finished uploading in the background, or the phone is back online: refresh.
+    uploadEvents.addEventListener('uploaded', reload)
+    window.addEventListener('online', reload)
+    return () => {
+      uploadEvents.removeEventListener('uploaded', reload)
+      window.removeEventListener('online', reload)
+    }
   }, [reload])
 
-  // Refresh while the AI is counting so the numbers update by themselves.
-  const counting = visits?.filter((v) => v.status === 'processing').length ?? 0
-  useEffect(() => {
-    if (!counting) return
-    const timer = setInterval(reload, 3000)
-    return () => clearInterval(timer)
-  }, [counting, reload])
-
-  const month = monthISO()
-  const thisMonth = (visits ?? []).filter((v) => v.date.startsWith(month) && v.status !== 'draft')
-  const students = thisMonth.reduce((s, v) => s + (v.headcount ?? 0), 0)
+  const waiting = drafts?.filter((d) => d.state === 'queued').length ?? 0
   const shown = showAll ? visits : visits?.slice(0, RECENT)
+
+  const uploadNow = async () => {
+    setUploading(true)
+    await uploadQueued().catch(() => {})
+    setUploading(false)
+  }
 
   return (
     <>
@@ -64,17 +94,17 @@ export default function MyVisitsPage() {
         <div className="relative">
           <div className="flex items-center justify-between">
             <p className="text-sm text-white/85">This month</p>
-            {counting > 0 && (
-              <span className="rounded-full bg-sun-400 px-2.5 py-0.5 text-xs font-semibold text-brand-900">{counting} counting</span>
+            {waiting > 0 && (
+              <span className="rounded-full bg-sun-400 px-2.5 py-0.5 text-xs font-semibold text-brand-900">{waiting} waiting to upload</span>
             )}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-4">
             <div>
-              <p className="text-3xl font-bold">{visits ? thisMonth.length : '—'}</p>
-              <p className="text-xs text-white/80">Visits done</p>
+              <p className="text-3xl font-bold">{month ? formatNumber(month.visits) : '—'}</p>
+              <p className="text-xs text-white/80">Visits uploaded</p>
             </div>
             <div>
-              <p className="text-3xl font-bold">{visits ? formatNumber(students) : '—'}</p>
+              <p className="text-3xl font-bold">{month ? formatNumber(month.students) : '—'}</p>
               <p className="text-xs text-white/80">Students counted</p>
             </div>
           </div>
@@ -88,8 +118,29 @@ export default function MyVisitsPage() {
         <MdAdd className="size-6" /> Start new visit
       </Link>
 
+      {drafts?.length > 0 && (
+        <section className="mt-6">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <h2 className="font-bold">On this phone</h2>
+            {waiting > 0 && (
+              <Button variant="secondary" size="sm" onClick={uploadNow} loading={uploading}>
+                <MdCloudUpload className="size-4" /> Upload now
+              </Button>
+            )}
+          </div>
+          <p className="mb-2 text-xs text-gray-500">
+            Drafts, and visits waiting for internet. Waiting visits upload by themselves when you’re online with the app open.
+          </p>
+          <div className="space-y-3">
+            {drafts.map((d) => (
+              <VisitCard key={d.id} visit={draftAsVisit(d)} to={`/staff/drafts/${d.id}`} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="mb-2 mt-6 flex items-center justify-between">
-        <h2 className="font-bold">{showAll ? 'All visits' : 'Recent visits'}</h2>
+        <h2 className="font-bold">{showAll ? 'All uploaded visits' : 'Uploaded visits'}</h2>
         {visits?.length > RECENT && (
           <button onClick={() => setShowAll((s) => !s)} className="text-sm font-semibold text-brand-700">
             {showAll ? 'Show less' : 'View all'}
@@ -97,14 +148,25 @@ export default function MyVisitsPage() {
         )}
       </div>
 
-      {!visits ? (
+      {loadError && !visits ? (
+        <EmptyState
+          icon={MdCloudOff}
+          title="Can’t load uploaded visits"
+          text={`${loadError} Drafts on this phone are safe.`}
+          action={
+            <Button variant="secondary" onClick={reload}>
+              Try again
+            </Button>
+          }
+        />
+      ) : !visits ? (
         <Spinner className="mx-auto mt-10 size-6 text-brand-700" />
       ) : visits.length === 0 ? (
-        <EmptyState icon={MdAssignment} title="No visits yet" text="Tap “Start new visit” when you reach a school." />
+        <EmptyState icon={MdAssignment} title="No uploaded visits yet" text="Tap “Start new visit” when you reach a school." />
       ) : (
         <div className="space-y-3">
           {shown.map((v) => (
-            <VisitCard key={v.id} visit={v} to={v.status === 'draft' ? `/staff/visits/${v.id}/photos` : `/staff/visits/${v.id}`} />
+            <VisitCard key={v.id} visit={v} to={`/staff/visits/${v.id}`} />
           ))}
         </div>
       )}

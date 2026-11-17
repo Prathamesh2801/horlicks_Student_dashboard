@@ -20,7 +20,8 @@ export default function AuthProvider({ children }) {
         if (auth?.token) apiLogout(auth.token).catch(() => {})
         authStore.clear()
         // Drop API responses cached for offline use, so the next user on this device can't see them.
-        if ('caches' in window) caches.delete('api').catch(() => {})
+        // (Drafts on the phone are kept: they belong to the user and upload after their next login.)
+        if ('caches' in window) for (const name of ['api', 'visit-photos']) caches.delete(name).catch(() => {})
         setAuth(null)
       },
     }),

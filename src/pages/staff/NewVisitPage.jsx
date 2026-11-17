@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import TopBar from '../../components/common/TopBar'
+import { useAuth } from '../../features/auth'
 import { VisitDetailsForm } from '../../features/visits'
-import { createVisit } from '../../services/api/visits.service'
+import { createDraft } from '../../services/drafts/draftStore'
 
 function Steps() {
   return (
@@ -18,7 +19,9 @@ function Steps() {
   )
 }
 
+// Step 1: details. The visit is saved as a draft on the phone (works offline) and uploaded after the photos.
 export default function NewVisitPage() {
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -27,8 +30,8 @@ export default function NewVisitPage() {
     setSubmitting(true)
     setError(null)
     try {
-      const visit = await createVisit(details)
-      navigate(`/staff/visits/${visit.id}/photos`, { replace: true })
+      const draft = await createDraft({ user, ...details })
+      navigate(`/staff/drafts/${draft.id}`, { replace: true })
     } catch (err) {
       setError(err.message)
       setSubmitting(false)

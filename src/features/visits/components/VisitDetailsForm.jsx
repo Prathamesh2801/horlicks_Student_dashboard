@@ -3,7 +3,7 @@ import { MdLocationOn } from 'react-icons/md'
 import BottomBar from '../../../components/common/BottomBar'
 import { Button, Card, Input, Select, Spinner } from '../../../components/ui'
 import { useGeolocation } from '../../../hooks/useGeolocation'
-import { getCities } from '../../../services/api/cities.service'
+import { getCities } from '../../../services/api/visits.service'
 import { formatCoords, formatTime, todayISO } from '../../../utils/format'
 
 function LocationBox({ geo, onRetry }) {
@@ -32,20 +32,21 @@ function LocationBox({ geo, onRetry }) {
   )
 }
 
-// Step 1 of a visit: Date, City (from the client's list), School name + GPS.
+// Step 1 of a visit: Date, City (server list, cached for offline use), School name + GPS.
 export default function VisitDetailsForm({ onSubmit, submitting }) {
-  const [form, setForm] = useState({ date: todayISO(), cityId: '', schoolName: '' })
+  const [form, setForm] = useState({ date: todayISO(), city: '', schoolName: '' })
   const [cities, setCities] = useState([])
+  const [citiesError, setCitiesError] = useState(null)
   const geo = useGeolocation()
   const { locate } = geo
 
   useEffect(() => {
-    getCities().then(setCities)
+    getCities().then(setCities, (e) => setCitiesError(e.message))
     locate().catch(() => {})
   }, [locate])
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
-  const ready = form.date && form.cityId && form.schoolName.trim() && geo.coords
+  const ready = form.date && form.city && form.schoolName.trim().length >= 2 && geo.coords
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -61,10 +62,10 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
         <Select
           label="City"
           placeholder="Select city"
-          hint="From the city list provided in Excel"
-          value={form.cityId}
-          onChange={set('cityId')}
-          options={cities.map((c) => ({ value: c.id, label: `${c.name} (${c.district})` }))}
+          hint={citiesError ? `Couldn’t load cities: ${citiesError} Connect to the internet once.` : 'From the programme’s city list'}
+          value={form.city}
+          onChange={set('city')}
+          options={cities.map((c) => ({ value: c, label: c }))}
           required
         />
         <Input
@@ -72,6 +73,8 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           placeholder="e.g. Govt. UP School, Patia"
           value={form.schoolName}
           onChange={set('schoolName')}
+          minLength={2}
+          maxLength={150}
           autoComplete="off"
           required
         />

@@ -1,151 +1,128 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { MdChevronLeft, MdChevronRight, MdDownload, MdSearchOff } from 'react-icons/md'
+import { MdDownload } from 'react-icons/md'
 import PageHeader from '../../components/common/PageHeader'
-import { Button, Card, EmptyState, Spinner } from '../../components/ui'
-import { periodMonth, VISIT_STATUS } from '../../constants/visit'
-import { Filters, VisitsTable } from '../../features/monitoring'
-import { getCities } from '../../services/api/cities.service'
-import { listVisits } from '../../services/api/visits.service'
+import { LoadError, NoResults, Pagination, RefreshBar, StaleBanner, TableSkeleton, TableToolbar, useTableState } from '../../components/table'
+import { Button, Card, Select } from '../../components/ui'
+import { PERIODS, periodRange } from '../../constants/visit'
+import { VISIT_SORT, VisitsTable } from '../../features/monitoring'
+import { useAsync } from '../../hooks/useAsync'
+import { getCities, listVisits } from '../../services/api/visits.service'
 import { downloadCsv } from '../../utils/downloadCsv'
-import { formatNumber, todayISO } from '../../utils/format'
+import { formatNumber, formatTime, todayISO } from '../../utils/format'
 
-const PAGE_SIZE = 10
-const DEFAULTS = { q: '', cityId: '', status: '', period: 'this' }
+const FILTERS = { city: '', period: 'this', ai: '' }
 
-// [1, '…', 4, 5, 6, '…', 20]
-function pageList(page, count) {
-  const pages = [...new Set([1, page - 1, page, page + 1, count])].filter((n) => n >= 1 && n <= count).sort((a, b) => a - b)
-  return pages.flatMap((n, i) => (i && n - pages[i - 1] > 1 ? ['…', n] : [n]))
-}
+const AI_FILTERS = [
+  { value: 'counted', label: 'AI counted' },
+  { value: 'failed', label: 'AI count failed' },
+  { value: 'none', label: 'No AI photos' },
+]
+const aiState = (v) => (v.aiFailed ? 'failed' : v.photos.some((p) => p.type === 'headcount') ? 'counted' : 'none')
+
+// Phones have no column headers, so sorting is a menu there.
+const SORT_OPTIONS = [
+  { value: '-date', label: 'Newest first' },
+  { value: 'date', label: 'Oldest first' },
+  { value: '-count', label: 'Most students' },
+  { value: 'school', label: 'School A–Z' },
+  { value: 'city', label: 'City A–Z' },
+  { value: 'staff', label: 'Staff A–Z' },
+]
 
 function exportCsv(visits) {
   downloadCsv(`visits-${todayISO()}.csv`, [
-    ['Date', 'School', 'City', 'District', 'Staff', 'Status', 'Photos', 'AI count', 'Latitude', 'Longitude', 'Submitted'],
-    ...visits.map((v) => [
-      v.date,
-      v.schoolName,
-      v.cityName,
-      v.district,
-      v.staffName,
-      VISIT_STATUS[v.status]?.label,
-      v.photoCount,
-      v.headcount,
-      v.lat,
-      v.lng,
-      v.submittedAt,
-    ]),
+    ['Visit ID', 'Date', 'School', 'City', 'Staff', 'Photos', 'AI count', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
+    ...visits.map((v) => [v.id, v.date, v.schoolName, v.cityName, v.staffName, v.photoCount, v.headcount, v.aiFailed, v.lat, v.lng, v.submittedAt]),
   ])
 }
 
-// Filters and page live in the URL, so Back from a visit returns to the same list.
-// ponytail: filters + pages client-side; pass page/limit to the real API once it paginates.
+// City + period are filtered by the server; search, AI filter, sorting and paging happen here.
+// Everything is kept in the URL, so Back from a visit returns to the same view.
 export default function VisitsPage() {
-  const [params, setParams] = useSearchParams()
-  const filters = Object.fromEntries(Object.entries(DEFAULTS).map(([k, d]) => [k, params.get(k) ?? d]))
-  const page = Number(params.get('page')) || 1
+  const [params] = useSearchParams()
+  const city = params.get('city') ?? FILTERS.city
+  const period = params.get('period') ?? FILTERS.period
+
+  const load = useCallback(() => listVisits({ city, ...periodRange(period) }), [city, period])
+  const { data, error, loading, refreshing, loadedAt, reload } = useAsync(load)
+
+  const table = useTableState({
+    rows: data,
+    filters: FILTERS,
+    defaultSort: '-date',
+    sortValue: VISIT_SORT,
+    searchText: (v) => `${v.schoolName} ${v.staffName} ${v.cityName}`,
+    matches: (v, s) => !s.ai || aiState(v) === s.ai,
+  })
+
   const [cities, setCities] = useState([])
-  const [visits, setVisits] = useState(null)
-
-  const update = (next) =>
-    setParams(Object.fromEntries(Object.entries(next).filter(([k, v]) => v !== DEFAULTS[k] && !(k === 'page' && v === 1))), {
-      replace: true,
-    })
-
   useEffect(() => {
-    getCities().then(setCities)
+    getCities().then(setCities, () => {})
   }, [])
-
-  const { q, cityId, status, period } = filters
-  useEffect(() => {
-    let live = true
-    const timer = setTimeout(
-      () => listVisits({ q, cityId, status, month: periodMonth(period) }).then((v) => live && setVisits(v)),
-      200,
-    )
-    return () => {
-      live = false
-      clearTimeout(timer)
-    }
-  }, [q, cityId, status, period])
-
-  const pageCount = Math.max(1, Math.ceil((visits?.length ?? 0) / PAGE_SIZE))
-  const current = Math.min(page, pageCount)
-  const rows = visits?.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE) ?? []
-  const goTo = (n) => update({ ...filters, page: n })
 
   return (
     <div className="space-y-4">
       <PageHeader
         title="Visits"
-        subtitle={visits ? `${formatNumber(visits.length)} visits · click a row to open it` : 'Loading…'}
+        subtitle={
+          loading ? 'Loading…' : `${formatNumber(table.total)} visit${table.total === 1 ? '' : 's'}${loadedAt ? ` · updated ${formatTime(loadedAt)}` : ''} · click a row to open it`
+        }
         action={
-          <Button variant="secondary" onClick={() => exportCsv(visits)} disabled={!visits?.length}>
+          <Button variant="secondary" onClick={() => exportCsv(table.filtered)} disabled={!table.total}>
             <MdDownload className="size-5" /> Export
           </Button>
         }
       />
-      <Filters value={filters} onChange={(f) => update({ ...f, page: 1 })} cities={cities} />
 
-      {!visits ? (
-        <Spinner className="mx-auto mt-10 size-6 text-brand-700" />
-      ) : visits.length === 0 ? (
-        <EmptyState
-          icon={MdSearchOff}
-          title="No visits match these filters"
-          action={
-            <Button variant="secondary" onClick={() => update({ ...DEFAULTS, period: 'all' })}>
-              Clear filters
-            </Button>
-          }
+      <TableToolbar table={table} placeholder="Search school, staff or city" onRefresh={reload} refreshing={refreshing} sortOptions={SORT_OPTIONS}>
+        <Select
+          className="w-full sm:w-44"
+          aria-label="City"
+          placeholder="All cities"
+          value={table.state.city}
+          onChange={(e) => table.set({ city: e.target.value })}
+          options={cities.map((c) => ({ value: c, label: c }))}
         />
+        <Select
+          className="w-[calc(50%-0.25rem)] sm:w-40"
+          aria-label="Period"
+          value={table.state.period}
+          onChange={(e) => table.set({ period: e.target.value })}
+          options={PERIODS}
+        />
+        <Select
+          className="w-[calc(50%-0.25rem)] sm:w-44"
+          aria-label="AI count"
+          placeholder="All AI results"
+          value={table.state.ai}
+          onChange={(e) => table.set({ ai: e.target.value })}
+          options={AI_FILTERS}
+        />
+      </TableToolbar>
+
+      {error && data && <StaleBanner message={error} onRetry={reload} />}
+
+      {error && !data ? (
+        <LoadError message={error} onRetry={reload} />
       ) : (
         <Card className="overflow-hidden">
-          <VisitsTable visits={rows} />
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-4">
-            <p className="text-sm text-gray-500">
-              Showing {(current - 1) * PAGE_SIZE + 1}–{(current - 1) * PAGE_SIZE + rows.length} of {formatNumber(visits.length)}
-            </p>
-            {pageCount > 1 && (
-              <nav className="flex items-center gap-1.5" aria-label="Pages">
-                <PageButton onClick={() => goTo(current - 1)} disabled={current === 1} label="Previous page">
-                  <MdChevronLeft className="size-5" />
-                </PageButton>
-                {pageList(current, pageCount).map((n, i) =>
-                  n === '…' ? (
-                    <span key={`gap${i}`} className="px-1 text-gray-400">
-                      …
-                    </span>
-                  ) : (
-                    <PageButton key={n} onClick={() => goTo(n)} active={n === current} label={`Page ${n}`}>
-                      {n}
-                    </PageButton>
-                  ),
-                )}
-                <PageButton onClick={() => goTo(current + 1)} disabled={current === pageCount} label="Next page">
-                  <MdChevronRight className="size-5" />
-                </PageButton>
-              </nav>
-            )}
-          </div>
+          <RefreshBar active={refreshing && !loading} />
+          {loading ? (
+            <TableSkeleton />
+          ) : table.total === 0 ? (
+            <NoResults
+              onClear={table.isFiltered ? table.reset : undefined}
+              text={table.isFiltered ? undefined : 'No visits in this period yet.'}
+            />
+          ) : (
+            <div className={`transition-opacity ${refreshing ? 'opacity-60' : ''}`}>
+              <VisitsTable visits={table.rows} table={table} />
+              <Pagination table={table} noun="visits" />
+            </div>
+          )}
         </Card>
       )}
     </div>
-  )
-}
-
-function PageButton({ active, label, children, ...props }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-current={active ? 'page' : undefined}
-      className={`flex size-9 items-center justify-center rounded-lg text-sm font-semibold transition disabled:opacity-40 ${
-        active ? 'bg-brand-700 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50'
-      }`}
-      {...props}
-    >
-      {children}
-    </button>
   )
 }

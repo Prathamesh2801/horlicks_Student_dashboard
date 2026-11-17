@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css'
 import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet'
 import { Link } from 'react-router'
 import { MdGroups, MdPhotoLibrary } from 'react-icons/md'
-import { STATUS_COLOR } from '../../../constants/visit'
+import { PIN_COLOR } from '../../../constants/visit'
 import { formatDate, formatNumber } from '../../../utils/format'
 import { VisitStatusBadge } from '../../visits'
 
@@ -23,7 +23,7 @@ export default function VisitsMap({ visits }) {
             key={v.id}
             center={[v.lat, v.lng]}
             radius={8}
-            pathOptions={{ color: '#fff', weight: 2, fillColor: STATUS_COLOR[v.status], fillOpacity: 1 }}
+            pathOptions={{ color: '#fff', weight: 2, fillColor: v.aiFailed ? PIN_COLOR.aiFailed : PIN_COLOR.counted, fillOpacity: 1 }}
           >
             <Popup>
               <div className="min-w-52 space-y-2 font-sans">
@@ -38,7 +38,7 @@ export default function VisitsMap({ visits }) {
                     <MdGroups className="size-4 text-brand-700" /> AI count {formatNumber(v.headcount)}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <MdPhotoLibrary className="size-4 text-gray-500" /> {v.photoCount} photos
+                    <MdPhotoLibrary className="size-4 text-gray-500" /> {v.photoCount} photo{v.photoCount === 1 ? '' : 's'}
                   </span>
                 </div>
                 <VisitStatusBadge status={v.status} />
