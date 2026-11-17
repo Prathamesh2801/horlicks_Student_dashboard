@@ -3,7 +3,7 @@ import PageHeader from '../../components/common/PageHeader'
 import { Spinner } from '../../components/ui'
 import { STATUS_COLOR, VISIT_STATUS } from '../../constants/visit'
 import { VisitsMap } from '../../features/monitoring'
-import { listVisits } from '../../services/api/visits'
+import { listVisits } from '../../services/api/visits.service'
 
 const LEGEND = ['completed', 'processing', 'draft']
 

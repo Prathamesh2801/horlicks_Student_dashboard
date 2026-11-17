@@ -7,7 +7,7 @@ import { Button, Modal, Spinner } from '../../components/ui'
 import { PHOTO_TYPES } from '../../constants/visit'
 import { PhotoGrid, useVisit } from '../../features/visits'
 import { useGeolocation } from '../../hooks/useGeolocation'
-import { deletePhoto, submitVisit, uploadPhoto } from '../../services/api/visits'
+import { deletePhoto, submitVisit, uploadPhoto } from '../../services/api/visits.service'
 import { compressImage } from '../../utils/compressImage'
 
 const HELP = { normal: 'Banner, leaflet, marketing and other activity photos.' }

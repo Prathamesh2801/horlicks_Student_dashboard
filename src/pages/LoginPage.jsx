@@ -6,12 +6,6 @@ import Logo from '../components/common/Logo'
 import { Button, Card, Input } from '../components/ui'
 import { config } from '../config/config'
 import { homePathFor, useAuth } from '../features/auth'
-
-// Mock mode only: one tap fills a demo login. Remove with useMock: false.
-const DEMO_LOGINS = [
-  { label: 'Admin', username: 'admin', password: 'admin123' },
-  { label: 'Staff', username: 'ravi.kumar', password: 'staff123' },
-]
 import { installActions, useInstall } from '../features/pwa'
 
 export default function LoginPage() {
@@ -53,9 +47,7 @@ export default function LoginPage() {
         className="relative mx-auto flex w-full max-w-sm flex-col px-5 pt-14 pb-8 sm:pt-20"
       >
         <div className="text-center text-white">
-          <div className="mx-auto mb-5 w-fit rounded-2xl bg-white px-4 py-3 shadow-lg">
-            <Logo className="h-12 w-auto" />
-          </div>
+          <Logo variant="white" className="mx-auto mb-5 h-20 w-auto drop-shadow-sm" />
           <h1 className="text-3xl font-bold tracking-tight">{config.appName}</h1>
           <p className="mt-1 text-sm text-white/85">School activity app</p>
         </div>
@@ -63,30 +55,10 @@ export default function LoginPage() {
         <Card className="mt-10 p-6 shadow-xl">
           <h2 className="text-xl font-bold">Sign in</h2>
           <p className="mb-5 text-sm text-gray-500">Use the username and password from your admin.</p>
-          {config.useMock && (
-            <div className="mb-5 rounded-xl bg-brand-50 p-3 ring-1 ring-brand-100">
-              <p className="mb-2 text-xs font-semibold text-brand-700">Demo · tap to fill</p>
-              <div className="grid grid-cols-2 gap-2">
-                {DEMO_LOGINS.map((d) => (
-                  <button
-                    key={d.label}
-                    type="button"
-                    onClick={() => {
-                      setForm({ username: d.username, password: d.password })
-                      setError(null)
-                    }}
-                    className={`rounded-lg px-3 py-2 text-left ring-1 transition ${form.username === d.username ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-gray-800 ring-gray-200 hover:ring-brand-300'}`}
-                  >
-                    <span className="block text-sm font-semibold">{d.label}</span>
-                    <span className={`block text-xs ${form.username === d.username ? 'text-white/80' : 'text-gray-500'}`}>{d.username}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Username"
+              placeholder="e.g. EMP001"
               value={form.username}
               onChange={set('username')}
               autoComplete="username"

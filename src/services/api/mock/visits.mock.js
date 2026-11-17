@@ -1,11 +1,21 @@
-// In-browser stand-in for the backend + AI service. Same function names as the real API modules.
-// ponytail: localStorage caps at ~5 MB, so photos are stored as small thumbnails; fine for demos, the real API stores full files.
+// Sample visits for the screens the server doesn't cover yet (visits, photos, AI headcount, dashboard).
+// Stored in this browser only (localStorage). No users or passwords live here: login and users come from the server.
+// ponytail: localStorage caps at ~5 MB, so photos are stored as small thumbnails; the real API will store full files.
 import cities from '../../../data/cities.json'
 import { config } from '../../../config/config'
 import { compressImage } from '../../../utils/compressImage'
 import { authStore } from '../client'
 
-const DB_KEY = 'mockdb-v2'
+const DB_KEY = 'mockdb-v3' // v3 = visits only
+
+// Older versions also stored demo users with passwords: remove them.
+try {
+  localStorage.removeItem('mockdb-v1')
+  localStorage.removeItem('mockdb-v2')
+  localStorage.removeItem('auth')
+} catch {
+  // storage blocked: nothing to clean
+}
 const cityById = Object.fromEntries(cities.map((c) => [c.id, c]))
 const uid = () => Math.random().toString(36).slice(2, 10)
 const delay = (ms = 250) => new Promise((r) => setTimeout(r, ms))
@@ -32,26 +42,8 @@ const PLACES = ['Patia', 'Mangalabag', 'Chend', 'Gosaninuagaon', 'Dhanupali', 'B
 function seed() {
   const now = Date.now()
   const daysAgo = (n) => new Date(now - n * 86400000).toISOString()
-  const user = (id, name, username, role, created, active = true) => ({
-    id,
-    name,
-    username,
-    password: role === 'admin' ? 'admin123' : 'staff123',
-    role,
-    active,
-    createdAt: daysAgo(created),
-  })
-  const users = [
-    user('u1', 'State Admin', 'admin', 'admin', 30),
-    user('u2', 'Ravi Kumar', 'ravi.kumar', 'staff', 29),
-    user('u3', 'Priya Das', 'priya.das', 'staff', 29),
-    user('u4', 'Amit Sahu', 'amit.sahu', 'staff', 28),
-    user('u5', 'Sneha Mishra', 'sneha.m', 'staff', 28),
-    user('u6', 'Rahul Nayak', 'rahul.n', 'admin', 26),
-    user('u7', 'Deepa Patra', 'deepa.p', 'staff', 25, false),
-    user('u8', 'Suresh Behera', 'suresh.b', 'staff', 23),
-  ]
-  const staff = users.filter((u) => u.role === 'staff' && u.active)
+  // Sample staff names for the sample visits only (not logins).
+  const staff = ['Ravi Kumar', 'Priya Das', 'Amit Sahu', 'Sneha Mishra', 'Suresh Behera'].map((name, i) => ({ id: `sample${i}`, name }))
   const cityIds = Object.keys(SEED_COORDS)
 
   const visits = Array.from({ length: 30 }, (_, i) => {
@@ -82,7 +74,7 @@ function seed() {
       photos,
     }
   })
-  return { users, visits }
+  return { visits }
 }
 
 function save(db) {
@@ -106,11 +98,6 @@ function load() {
 }
 
 const currentUser = () => authStore.get()?.user
-const publicUser = (u) => {
-  const copy = { ...u }
-  delete copy.password
-  return copy
-}
 
 // Adds the derived fields the real API will return: status, headcount, photoCount, city info.
 function view(v) {
@@ -139,46 +126,6 @@ function findVisit(db, id) {
   return visit
 }
 
-// ---- auth ----
-export async function login({ username, password }) {
-  await delay()
-  const user = load().users.find((u) => u.username === username.trim() && u.password === password)
-  if (!user) return fail('Wrong username or password')
-  if (!user.active) return fail('This account is disabled. Contact your admin.')
-  return { token: `mock-${user.id}`, user: publicUser(user) }
-}
-
-// ---- users ----
-export async function listUsers() {
-  await delay()
-  return load().users.map(publicUser)
-}
-
-export async function createUser({ name, username, password, role }) {
-  await delay()
-  const db = load()
-  if (db.users.some((u) => u.username === username)) return fail('That username is already taken')
-  const user = { id: uid(), name, username, password, role, active: true, createdAt: new Date().toISOString() }
-  db.users.push(user)
-  save(db)
-  return publicUser(user)
-}
-
-export async function updateUser(id, changes) {
-  await delay()
-  const db = load()
-  const user = db.users.find((u) => u.id === id)
-  if (!user) return fail('User not found')
-  Object.assign(user, changes)
-  save(db)
-  return publicUser(user)
-}
-
-// ---- cities ----
-export async function getCities() {
-  return cities
-}
-
 // ---- visits ----
 export async function createVisit({ date, cityId, schoolName, lat, lng, accuracy }) {
   await delay()
@@ -192,7 +139,7 @@ export async function createVisit({ date, cityId, schoolName, lat, lng, accuracy
     lat,
     lng,
     accuracy,
-    staffId: me.id,
+    staffId: me.username,
     staffName: me.name,
     createdAt: new Date().toISOString(),
     submittedAt: null,
@@ -209,7 +156,7 @@ export async function listVisits({ mine, cityId, status, q, month } = {}) {
   const me = currentUser()
   return load()
     .visits.map(view)
-    .filter((v) => !mine || v.staffId === me?.id)
+    .filter((v) => !mine || v.staffId === me?.username)
     .filter((v) => !cityId || v.cityId === cityId)
     .filter((v) => !status || v.status === status)
     .filter((v) => !month || v.date.startsWith(month))

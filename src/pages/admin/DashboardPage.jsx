@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import PageHeader from '../../components/common/PageHeader'
 import { Card, fieldClass, Spinner } from '../../components/ui'
 import { CityChart, KpiTiles, VisitsTable } from '../../features/monitoring'
-import { getStats } from '../../services/api/visits'
+import { getStats } from '../../services/api/visits.service'
 import { formatMonth, formatTime, monthISO } from '../../utils/format'
 
 export default function DashboardPage() {

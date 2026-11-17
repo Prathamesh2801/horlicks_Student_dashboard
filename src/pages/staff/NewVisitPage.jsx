@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import TopBar from '../../components/common/TopBar'
 import { VisitDetailsForm } from '../../features/visits'
-import { createVisit } from '../../services/api/visits'
+import { createVisit } from '../../services/api/visits.service'
 
 function Steps() {
   return (

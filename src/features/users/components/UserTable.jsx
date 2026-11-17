@@ -23,10 +23,13 @@ function Actions({ user, isMe, onToggleActive, onResetPassword }) {
 }
 
 const RoleBadge = ({ role }) => <Badge tone={role === 'admin' ? 'brand' : 'gray'}>{role === 'admin' ? 'Admin' : 'Staff'}</Badge>
+// Green dot while the user has an active session on the server.
+const SignedInDot = ({ user }) =>
+  user.signedIn ? <span className="size-2 shrink-0 rounded-full bg-green-500" title="Signed in now" aria-label="Signed in now" /> : null
 const StatusBadge = ({ active }) => <Badge tone={active ? 'green' : 'red'}>{active ? 'Active' : 'Disabled'}</Badge>
 
 // Table on tablet/desktop, cards on phones. Render inside a Card with p-0.
-export default function UserTable({ users, currentUserId, onToggleActive, onResetPassword }) {
+export default function UserTable({ users, currentUsername, onToggleActive, onResetPassword }) {
   const actionProps = { onToggleActive, onResetPassword }
   return (
     <>
@@ -43,11 +46,12 @@ export default function UserTable({ users, currentUserId, onToggleActive, onRese
         </thead>
         <tbody className="divide-y divide-gray-100">
           {users.map((u) => (
-            <tr key={u.id} className={u.active ? '' : 'bg-gray-50/60'}>
+            <tr key={u.username} className={u.active ? '' : 'bg-gray-50/60'}>
               <td className="px-5 py-3">
                 <div className="flex items-center gap-3">
                   <Avatar name={u.name} className={avatarTone(u)} />
                   <span className="font-semibold">{u.name}</span>
+                  <SignedInDot user={u} />
                 </div>
               </td>
               <td className="px-3 py-3 text-gray-600">{u.username}</td>
@@ -59,7 +63,7 @@ export default function UserTable({ users, currentUserId, onToggleActive, onRese
                 <StatusBadge active={u.active} />
               </td>
               <td className="px-3 py-3">
-                <Actions user={u} isMe={u.id === currentUserId} {...actionProps} />
+                <Actions user={u} isMe={u.username === currentUsername} {...actionProps} />
               </td>
             </tr>
           ))}
@@ -68,18 +72,19 @@ export default function UserTable({ users, currentUserId, onToggleActive, onRese
 
       <ul className="divide-y divide-gray-100 md:hidden">
         {users.map((u) => (
-          <li key={u.id} className="flex items-start gap-3 px-4 py-3.5">
+          <li key={u.username} className="flex items-start gap-3 px-4 py-3.5">
             <Avatar name={u.name} className={avatarTone(u)} />
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{u.name}</span>
+                <SignedInDot user={u} />
                 <RoleBadge role={u.role} />
                 <StatusBadge active={u.active} />
               </div>
               <p className="text-xs text-gray-500">
                 {u.username} · created {formatDate(u.createdAt)}
               </p>
-              <Actions user={u} isMe={u.id === currentUserId} {...actionProps} />
+              <Actions user={u} isMe={u.username === currentUsername} {...actionProps} />
             </div>
           </li>
         ))}

@@ -7,7 +7,7 @@ import { config } from '../../config/config'
 import { useAuth } from '../../features/auth'
 import { installActions, useInstall } from '../../features/pwa'
 import { VisitCard } from '../../features/visits'
-import { listVisits } from '../../services/api/visits'
+import { listVisits } from '../../services/api/visits.service'
 import { formatNumber, monthISO } from '../../utils/format'
 
 const RECENT = 5
@@ -39,7 +39,7 @@ export default function MyVisitsPage() {
   return (
     <>
       <header className="sticky top-0 z-[900] -mx-4 mb-4 flex items-center gap-3 border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur">
-        <Logo className="h-8 w-auto" />
+        <Logo className="h-9 w-auto" />
         <div className="min-w-0 flex-1">
           <p className="font-bold text-brand-700">{config.appName}</p>
           <p className="truncate text-xs text-gray-500">{user.name} · Staff</p>

@@ -1,6 +1,6 @@
 # Odisha School Activity AI Dashboard: Project Idea
 
-> Status: **React frontend scaffolded** (runs on a built-in mock API; see §15). Backend API + AI face API not started. Awaiting client answers (§14) and the client's colours/assets.
+> Status: **React frontend built.** Login + users run on the **real server API** (v1.1.1, see `docs/SERVER_API.md`); visits/photos/dashboard still use in-browser sample data until those endpoints exist. AI face API not connected yet. Awaiting client answers (§14) and the client's colours/assets.
 > Design (Penpot, final UI v2, implemented 2026-11-16; PDF export in `design-export/`): https://design.penpot.app/?screen=workspace&team-id=cc32ce3d-bd54-8151-8007-eabd223f5fb7&file-id=b55064db-d93d-80f9-8008-de1fcbfe1940
 > Owners: Client (React) is mine. Server, APIs and AI belong to a colleague (or me, not decided yet).
 
@@ -183,13 +183,12 @@ photos:    { _id, visitId, type: 'normal'|'headcount',
 ```
 > Put a `2dsphere` index on visit location if map/distance queries are needed server-side.
 
-**API contract** (the frontend mock in `src/services/api/mock` implements exactly this):
+**API contract.** Live: auth + users are on the server, with server field names (`Full_Name`, `Role`, `Status`); see **`docs/SERVER_API.md`** (`auth.php`, `Admin/user.php`). The services map them to the app's shapes. Still to build on the server: the visit endpoints below (the sample data in `src/services/api/mock/visits.mock.js` behaves like this):
 
 ```text
-POST   /auth/login                    { username, password } → { token, user:{ id, name, username, role } }
-GET    /users                         (admin) → [user]
-POST   /users                         (admin) { name, username, password, role: 'admin'|'staff' } → user
-PATCH  /users/:id                     (admin) { active?, password? } → user
+POST   /auth.php                      LIVE  { username, password } → { Token, Username, Full_Name, Role }
+POST   /auth.php?do=logout            LIVE
+GET|POST|PUT /Admin/user.php          LIVE  (admin) list / create / update / enable-disable users
 GET    /cities                        → [{ id, name, district }]
 POST   /visits                        (staff) { date, cityId, schoolName, lat, lng, accuracy } → visit
 GET    /visits?mine&cityId&status&q&month   → [visit]   (month = YYYY-MM)   (paginate on the real server)
@@ -241,7 +240,7 @@ Auth: Bearer token. A 401 sends the user back to /login.
 | Phase | Scope |
 |---|---|
 | **0. UX (done)** | Penpot: foundations, IA, wireframes, hi-fi desktop + mobile, clickable flows |
-| **0.5 Frontend (done, on mock API)** | Login, staff visit flow (details → photos → headcount → AI summary), admin dashboard, visits, detail, map, users |
+| **0.5 Frontend (done; auth + users on the real API)** | Login, staff visit flow (details → photos → headcount → AI summary), admin dashboard, visits, detail, map, users |
 | **1. Foundation** | Backend: auth + 2 roles, users, cities import (Excel → DB), visit + photo upload API, storage |
 | **2. Monitoring** | Dashboard KPIs, charts, **Map view**, **Activity view** with filters |
 | **3. AI** | YOLO counting service, queue, bounding-box overlay, auto-flagging, verify/flag flow |
@@ -276,13 +275,13 @@ Also still to confirm:
 
 **Run:** `npm install` → `npm run dev` (open the URL, app uses `#/` routes). `npm run build` → static files in `dist/` (host anywhere). `npm run lint`.
 
-**Demo logins (mock mode):** `admin / admin123`, `ravi.kumar / staff123` (other staff: `priya.das`, `amit.sahu`, `sneha.m`, `suresh.b`, all `staff123`). Mock data lives in the browser's localStorage (`mockdb-v2`); clear site data to reset.
+**Login:** real accounts from the server. The first admins are `EMP001` / `EMP002` (created by the server's `setup.php`; passwords from the server `.env`, ask the server owner). Create everyone else under **Users**. No demo logins exist in the app. Sample visits live in this browser's localStorage (`mockdb-v3`); clear site data to reset them.
 
 **Settings:** everything is in `src/config/config.js` (no `.env` files):
-- `useMock: true` → in-browser mock API. Set `false` and fill `apiUrl` once the backend is live.
-- `apiUrl`, `appName`, `mockAiDelay`.
+- `BASE_URL_SERVER`: the PHP API (`http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API`). In `npm run dev` the app calls `/server-api/…` and Vite forwards it there (works from phones on an https tunnel). Production builds call it directly, so serve the app over **http on the LAN** or put the API behind **https** (browsers block http calls from https pages).
+- `appName`, `totalSchools`, `mockAiDelay` (sample visits only).
 
-**Client branding:** Horlicks palette from the Penpot design as Tailwind tokens in `src/index.css` (`brand-*` navy, `accent-*` red, `sun-400`, `cream`, `page`); logo in `src/assets/logo.png`, app icon `public/icon.svg`.
+**Client branding:** Horlicks palette from the Penpot design as Tailwind tokens in `src/index.css` (`brand-*` navy, `accent-*` red, `sun-400`, `cream`, `page`); logo is the client's Horlicks wordmark + orange chevron, rebuilt as SVG from their envelope PDF (`raw-assets/`): `src/assets/horlicks-logo.svg` (navy, for light backgrounds) and `horlicks-logo-white.svg` (for navy backgrounds); app icon `public/icon.svg`. Client creatives are reviewed in `design-export/CLIENT-CREATIVES.md`.
 
 ```text
 src/
@@ -300,15 +299,15 @@ src/
 ├── layouts/              AdminLayout (sidebar), StaffLayout (mobile header)
 ├── pages/                LoginPage, NotFoundPage, admin/*, staff/*
 ├── routes/index.jsx      createHashRouter + role guards
-├── services/api/         client.js (fetch + token), auth/users/cities/visits.js, mock/
+├── services/api/         client.js (axios + token + errors), auth.service, users.service (server); visits.service, cities.service (sample data for now), mock/visits.mock.js
 └── utils/                compressImage.js (canvas → JPEG), format.js, downloadCsv.js
 ```
 
-Each API module exports the same functions for mock and real mode, so switching to the backend means changing only `useMock` in `config.js`.
+Pages only import from `*.service.js`. When the server adds visit endpoints, replace the exports in `visits.service.js` with axios calls (same pattern as `users.service.js`); no page changes needed.
 
 **PWA (install + offline):** `src/features/pwa/`, configured in `vite.config.js`.
-- Installable on Android, iOS and desktop (manifest, PNG + maskable icons, `apple-touch-icon`, iOS meta tags). Icons are made from `src/assets/logo.png`.
+- Installable on Android, iOS and desktop (manifest, PNG + maskable icons, `apple-touch-icon`, iOS meta tags). Icons are the client logo on navy (`#002F85`).
 - **Install sheet** opens by itself 4 s after load (at most once a week after "Not now"), or from **Install app** on the login page, the staff header and the admin sidebar. It picks the flow per device: one-tap **Install** where the browser supports it (Chrome / Edge / Samsung on Android and desktop); **Share → Add to Home Screen** steps on iOS (Safari, Chrome, others); **⋮ → Install app** steps on other Android browsers; **File → Add to Dock** on Mac Safari; "open in your browser" + copy link inside WhatsApp / Instagram / Facebook. Hidden once installed.
 - **Offline:** the app shell is pre-cached; Google Fonts and OpenStreetMap tiles are cached as viewed; real-API `GET`s use network-first with a 7-day offline copy (cache `api`, cleared on logout). An offline / back-online notice is shown.
 - **Updates** use `registerType: 'prompt'`: a "new version, Reload" toast, so a visit in progress is never reloaded. Open tabs check for updates hourly.
-- Not yet: queueing photo uploads made while offline (needed once the real API is live; the mock API already works offline).
+- Not yet: queueing photo uploads made while offline (needed once visit endpoints are live; sample visits already work offline). Login needs the server.

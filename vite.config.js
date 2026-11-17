@@ -5,11 +5,23 @@ import { VitePWA } from "vite-plugin-pwa";
 import { config } from "./src/config/config.js";
 
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const server = new URL(config.BASE_URL_SERVER);
+
+// Dev only: /server-api/* is forwarded to the PHP API from this PC, so a phone on an https tunnel
+// can log in too (no mixed-content block, and the phone doesn't need to be on the office LAN).
+const serverApiProxy = {
+  "/server-api": {
+    target: server.origin,
+    changeOrigin: true,
+    rewrite: (path) => path.replace(/^\/server-api/, server.pathname.replace(/\/$/, "")),
+  },
+};
 
 export default defineConfig({
   base: "./",
   server: {
     host: true,
+    proxy: serverApiProxy,
   },
   plugins: [
     react(),
@@ -79,7 +91,7 @@ export default defineConfig({
           },
           {
             // Real API reads: fresh when online, last saved copy when offline. Cleared on logout.
-            urlPattern: new RegExp(`^${escapeRegExp(config.apiUrl)}/`),
+            urlPattern: new RegExp(`^${escapeRegExp(config.BASE_URL_SERVER)}/`),
             method: "GET",
             handler: "NetworkFirst",
             options: {

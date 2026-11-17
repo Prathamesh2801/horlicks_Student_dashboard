@@ -16,7 +16,7 @@ export default function UserForm({ onSubmit, onCancel }) {
     setSaving(true)
     setError(null)
     try {
-      await onSubmit({ ...form, name: form.name.trim(), username: form.username.trim().toLowerCase() })
+      await onSubmit({ ...form, name: form.name.trim(), username: form.username.trim() })
     } catch (err) {
       setError(err.message)
       setSaving(false)
@@ -25,13 +25,16 @@ export default function UserForm({ onSubmit, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input label="Full name" value={form.name} onChange={set('name')} autoFocus required />
+      <Input label="Full name" value={form.name} onChange={set('name')} maxLength={20} hint="Up to 20 characters" autoFocus required />
       <Input
         label="Username"
         value={form.username}
         onChange={set('username')}
-        pattern="[a-zA-Z0-9._\-]{3,}"
-        title="At least 3 letters, numbers, dots, dashes or underscores"
+        placeholder="e.g. EMP003"
+        pattern="[a-zA-Z0-9._\-]{3,30}"
+        maxLength={30}
+        title="3–30 letters, numbers, dots, dashes or underscores"
+        hint="Can’t be changed later"
         autoComplete="off"
         autoCapitalize="none"
         spellCheck={false}
@@ -42,8 +45,9 @@ export default function UserForm({ onSubmit, onCancel }) {
         type="text"
         value={form.password}
         onChange={set('password')}
-        minLength={6}
-        hint="At least 6 characters. Share it with the user."
+        minLength={8}
+        maxLength={72}
+        hint="8–72 characters (server rule). Share it with the user."
         autoComplete="new-password"
         required
       />

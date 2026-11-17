@@ -1,11 +1,11 @@
 // All app settings live here (no .env files).
 export const config = {
-  // true = in-browser mock API (localStorage). Set false once the backend is ready.
-  useMock: true,
-  apiUrl: 'http://localhost:4000/api',
+  // Horlicks School Tribes PHP API (login + users). Reference: docs/SERVER_API.md
+  BASE_URL_SERVER: 'http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API',
+
   appName: 'My Workbench',
   // Schools in the programme, for the "x% of 6,000" coverage figure.
   totalSchools: 6000,
-  // Mock AI delay before a headcount comes back (ms)
+  // Sample visits only: delay before the fake AI headcount comes back (ms).
   mockAiDelay: 3000,
 }

@@ -20,7 +20,7 @@ function Sidebar({ onNavigate }) {
   return (
     <div className="flex h-full flex-col bg-white px-4 py-6">
       <div className="mb-8 px-2">
-        <Logo className="h-11 w-auto" />
+        <Logo className="h-12 w-auto" />
         <p className="mt-3 font-bold text-brand-700">School Activity</p>
         <p className="text-xs text-gray-500">Admin dashboard</p>
       </div>
@@ -99,7 +99,7 @@ export default function AdminLayout() {
         <button className="-ml-1 rounded-lg p-1.5 hover:bg-gray-100" onClick={() => setMenuOpen(true)} aria-label="Open menu">
           <MdMenu className="size-6" />
         </button>
-        <Logo className="h-8 w-auto" />
+        <Logo className="h-9 w-auto" />
         <span className="text-sm font-bold text-brand-700">School Activity</span>
       </header>
 

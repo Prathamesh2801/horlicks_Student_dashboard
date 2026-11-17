@@ -3,7 +3,7 @@ import { MdLocationOn } from 'react-icons/md'
 import BottomBar from '../../../components/common/BottomBar'
 import { Button, Card, Input, Select, Spinner } from '../../../components/ui'
 import { useGeolocation } from '../../../hooks/useGeolocation'
-import { getCities } from '../../../services/api/cities'
+import { getCities } from '../../../services/api/cities.service'
 import { formatCoords, formatTime, todayISO } from '../../../utils/format'
 
 function LocationBox({ geo, onRetry }) {
