@@ -15,7 +15,7 @@ All shapes below follow the existing conventions: PascalCase fields, `{ "Status"
 | # | Item | Type | Priority | Why |
 |---|---|---|---|---|
 | 1 | Odisha city list (+ district) | Config change | **P1, before field use** | Docs example has Mumbai/Pune/Delhi |
-| 2 | `Total_Face_Count` = **highest** photo, not sum | Logic fix | **P1** | v1.5.0 docs confirm it's a **sum**; same children appear in several class photos, so it over-counts |
+| 2 | ~~`Total_Face_Count` = highest photo~~ ✅ solved by `Unique_Person_Count` | Docs only | P3 | App shows unique as the main number; please document `Unique_Person_Count` / `Total_Unique_Person_Count` |
 | 3 | `client_ref` on create visit (no duplicate visits) | Small change | **P1** | The app retries uploads after a timeout; without this a retry can create the visit twice |
 | 4 | PHP / Apache limits for uploads + AI time | Server config | **P1** | 10 AI photos × 60 s can exceed default `max_execution_time` (30 s) |
 | 5 | ~~Dashboard stats endpoint~~ ✅ v1.5.0 · a few extra fields | Small change | P2 | `Admin/dashboard.php` is live and used; schools / photos / per-city counts still missing |

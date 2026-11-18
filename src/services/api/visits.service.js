@@ -32,7 +32,9 @@ function toVisit(v) {
     submittedAt: toDate(v.Created_AT),
     photos: [...normal, ...ai],
     photoCount: normal.length + ai.length,
-    headcount: v.Total_Face_Count ?? null,
+    // Main number: each child once, even when they're in several class photos (older visits: face total).
+    headcount: v.Unique_Person_Count ?? v.Total_Face_Count ?? null,
+    facesSeen: v.Total_Face_Count ?? null, // faces in all AI photos added up, repeats included
     aiFailed: ai.filter((p) => p.ai.status === 'failed').length,
     status: 'completed',
   }
@@ -118,7 +120,8 @@ export async function getStats({ month }) {
   return {
     month: data.Month,
     visits: data.Total_Visits,
-    students: data.Total_Unique_Person_Count,
+    students: data.Total_Unique_Person_Count ?? null, // unique students
+    facesSeen: data.Total_Face_Count, // all faces, repeats included
     allTimeVisits: byCity.reduce((s, c) => s + c.allTime, 0),
     activeCities: byCity.filter((c) => c.visits).length,
     byCity: byCity.sort((a, b) => b.visits - a.visits || b.allTime - a.allTime),

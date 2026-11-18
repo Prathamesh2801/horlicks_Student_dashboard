@@ -32,8 +32,8 @@ const SORT_OPTIONS = [
 
 function exportCsv(visits) {
   downloadCsv(`visits-${todayISO()}.csv`, [
-    ['Visit ID', 'Date', 'School', 'City', 'Staff', 'Photos', 'AI count', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
-    ...visits.map((v) => [v.id, v.date, v.schoolName, v.cityName, v.staffName, v.photoCount, v.headcount, v.aiFailed, v.lat, v.lng, v.submittedAt]),
+    ['Visit ID', 'Date', 'School', 'City', 'Staff', 'Photos', 'Unique students', 'Faces (incl. repeats)', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
+    ...visits.map((v) => [v.id, v.date, v.schoolName, v.cityName, v.staffName, v.photoCount, v.headcount, v.facesSeen, v.aiFailed, v.lat, v.lng, v.submittedAt]),
   ])
 }
 

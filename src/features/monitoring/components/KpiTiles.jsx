@@ -6,9 +6,9 @@ import { formatNumber } from '../../../utils/format'
 export default function KpiTiles({ stats }) {
   const tiles = [
     {
-      label: 'Students counted (AI)',
-      sub: stats.visits ? `~${formatNumber(Math.round(stats.students / stats.visits))} per visit` : null,
-      value: stats.students,
+      label: 'Unique students (AI)',
+      sub: `${formatNumber(stats.facesSeen)} faces incl. repeats`,
+      value: stats.students ?? stats.facesSeen,
       icon: MdGroups,
       tone: 'bg-brand-100 text-brand-700',
     },

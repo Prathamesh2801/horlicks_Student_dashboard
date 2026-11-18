@@ -335,11 +335,12 @@ One call with the numbers for the admin home screen. Admins only (Staff get `403
 |---|---|
 | `Month` | The month the numbers are for |
 | `Total_Visits` | Visits in that month, all staff |
-| `Total_Face_Count` | **Sum** of the AI photos' face counts of that month's visits (failed counts skipped) |
+| `Total_Face_Count` | **Sum** of the AI photos' face counts of that month's visits (failed counts skipped), repeats included |
+| `Total_Unique_Person_Count` | Unique people for the month (each child once). *Seen in responses, not yet in the live docs* |
 | `Cities` | Every configured city, including 0-visit ones. `This_Month_Visits` follows `month`; `Total_Visits` is all time. `This_Month_Visits` add up to the top `Total_Visits` |
 | `Recent_Visits` | The 5 newest visits of that month, full visit objects with photos (S3 links are temporary) |
 
-How the app shows it: **Students counted (AI)** = `Total_Face_Count` (+ average per visit), **Visits completed** = `Total_Visits`,
+How the app shows it: **Unique students (AI)** = `Total_Unique_Person_Count` (sub-line: `Total_Face_Count` faces incl. repeats), **Visits completed** = `Total_Visits`,
 **Cities with visits** = cities with `This_Month_Visits > 0`, **Visits all time** = sum of `Cities[].Total_Visits`,
 **Visits by city** chart = `This_Month_Visits`, **Recent visits** table = `Recent_Visits`.
 
@@ -447,7 +448,7 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 ## Questions / still needed from the server (for this app)
 
 - [ ] **`VISIT_CITIES`**: the docs' example shows Mumbai/Pune/Delhi; it needs the client's **Odisha** city list.
-- [ ] **`Total_Face_Count`**: v1.5.0 docs confirm it's the **sum** of the AI photos. The same children appear in several class photos, so a sum over-counts; it should be the **highest** single photo. The app shows the server's value as-is.
+- [x] **Unique count**: the server now also returns `Unique_Person_Count` per visit and `Total_Unique_Person_Count` on the dashboard (each child once across photos). The app shows it as the main **Unique students** number, with `Total_Face_Count` (all faces, repeats included) as the small secondary number. *Please add both fields to the live docs.*
 - [x] ~~Dashboard stats endpoint~~: `Admin/dashboard.php` (v1.5.0). Still missing from it: schools covered, photos, AI-failed visits, last-7-days count, face count per city.
 - [ ] **`search`** param on `GET visit.php` (school / staff name): today the admin list filters in the browser.
 - [ ] Optional: a `District` per city, and visit **edit/delete** for admins.

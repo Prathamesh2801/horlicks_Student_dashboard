@@ -6,7 +6,14 @@ import { formatDate, formatNumber, formatShortDate } from '../../../utils/format
 
 function AiCount({ visit }) {
   if (visit.headcount == null && visit.aiFailed) return <span className="font-semibold text-amber-600">—</span>
-  return <span className="font-bold">{formatNumber(visit.headcount)}</span>
+  return (
+    <span className="font-bold">
+      {formatNumber(visit.headcount)}
+      {visit.facesSeen > visit.headcount && (
+        <span className="block text-xs font-normal text-gray-500">{formatNumber(visit.facesSeen)} faces</span>
+      )}
+    </span>
+  )
 }
 
 function AiBadge({ visit }) {
@@ -33,7 +40,7 @@ export default function VisitsTable({ visits, table }) {
             {h('City', 'city')}
             {h('Staff', 'staff', 'hidden px-3 py-3 lg:table-cell')}
             {h('Photos', 'photos', 'hidden px-3 py-3 xl:table-cell', true)}
-            {h('AI count', 'count', undefined, true)}
+            {h('Students', 'count', undefined, true)}
             {h('AI', 'ai', undefined, true)}
             <th className="w-10" aria-hidden="true" />
           </tr>
