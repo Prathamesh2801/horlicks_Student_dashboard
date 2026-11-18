@@ -1,34 +1,26 @@
-import { MdCheck, MdGroups, MdPhotoLibrary, MdSchool } from 'react-icons/md'
+import { MdCheck, MdGroups, MdHistory, MdLocationCity } from 'react-icons/md'
 import { Card } from '../../../components/ui'
-import { config } from '../../../config/config'
 import { formatNumber } from '../../../utils/format'
 
+// Numbers from Admin/dashboard.php for the selected month.
 export default function KpiTiles({ stats }) {
-  const coverage = Math.round((stats.schools / config.totalSchools) * 1000) / 10
   const tiles = [
     {
       label: 'Students counted (AI)',
-      sub: `+${formatNumber(stats.studentsThisWeek)} this week`,
+      sub: stats.visits ? `~${formatNumber(Math.round(stats.students / stats.visits))} per visit` : null,
       value: stats.students,
       icon: MdGroups,
       tone: 'bg-brand-100 text-brand-700',
     },
+    { label: 'Visits completed', sub: 'this month', value: stats.visits, icon: MdCheck, tone: 'bg-green-50 text-green-600' },
     {
-      label: 'Schools covered',
-      sub: `${coverage}% of ${formatNumber(config.totalSchools)}`,
-      value: stats.schools,
-      icon: MdSchool,
+      label: 'Cities with visits',
+      sub: `of ${formatNumber(stats.byCity.length)} cities`,
+      value: stats.activeCities,
+      icon: MdLocationCity,
       tone: 'bg-accent-50 text-accent-600',
     },
-    { label: 'Visits completed', value: stats.completed, icon: MdCheck, tone: 'bg-green-50 text-green-600' },
-    {
-      label: 'Photos uploaded',
-      sub: stats.aiFailed ? `${formatNumber(stats.aiFailed)} visit${stats.aiFailed === 1 ? '' : 's'} with AI count failed` : null,
-      subTone: 'text-amber-600',
-      value: stats.photos,
-      icon: MdPhotoLibrary,
-      tone: 'bg-amber-50 text-amber-600',
-    },
+    { label: 'Visits all time', sub: 'all months', value: stats.allTimeVisits, icon: MdHistory, tone: 'bg-amber-50 text-amber-600' },
   ]
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">

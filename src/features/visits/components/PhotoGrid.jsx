@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { MdAdd, MdDelete, MdGroups, MdImage } from 'react-icons/md'
 import { Modal, Spinner } from '../../../components/ui'
 
-// Placeholder tints for photos without an image (seed data), as in the design.
+// Placeholder tints for photos without a link, as in the design.
 const TINTS = ['bg-amber-100 text-amber-300', 'bg-blue-100 text-blue-300', 'bg-green-100 text-green-300']
 const HEAD_TINT = 'bg-[#ead9cb] text-[#c4a58c]'
 

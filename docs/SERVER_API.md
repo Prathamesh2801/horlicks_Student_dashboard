@@ -1,6 +1,6 @@
 # Server API reference: Horlicks School Tribes API
 
-> **Saved copy** of the server team's docs, taken **17 Nov 2026** (API **v1.2.0**).
+> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**).
 > Live, always-current version: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 > (it also has a *Try it* console). If this copy and the live page differ, **the live page wins**: update this file.
 
@@ -14,12 +14,13 @@
 | HTTP client | axios instance in [`src/services/api/client.js`](../src/services/api/client.js): adds `Authorization: Bearer <token>`, turns server errors into readable messages, sends the user back to login on `401` |
 | Login / logout | [`src/services/api/auth.service.js`](../src/services/api/auth.service.js) → `auth.php` |
 | Users (admin) | [`src/services/api/users.service.js`](../src/services/api/users.service.js) → `Admin/user.php` |
-| Visits (staff + admin) | [`src/services/api/visits.service.js`](../src/services/api/visits.service.js) → `Staff/visit.php`: create (multipart), list (all pages), get one, cities, dashboard numbers |
+| Visits (staff + admin) | [`src/services/api/visits.service.js`](../src/services/api/visits.service.js) → `Staff/visit.php`: create (multipart), list (all pages), get one, cities |
+| Admin dashboard | `getStats` in the same file → `Admin/dashboard.php` (one call per month; refreshed every 30 s) |
 | Offline drafts + upload queue | [`src/services/drafts/`](../src/services/drafts): visits are built on the phone (IndexedDB) and uploaded in one request on **Submit**; without internet they wait and upload by themselves when back online |
 | Proxy path | The app always calls **`/server-api/…`** on its own site (`API_PROXY` in `config.js`). `npm run dev` and `npm run preview` forward it to `BASE_URL_SERVER`; in production the web server must do the same, see [Deploying](#deploying-the-app-api-proxy). This avoids the browser blocking http API calls from an https page, and works for phones that aren't on the office LAN |
 
 **Field names.** The server uses `Full_Name`, `Role: "Admin"`, `Status: "Active"`; the services convert to the app's
-`{ username, name, role: 'admin' | 'staff', active, signedIn, createdAt }` and visits to `{ id, date, city, schoolName, staffName, lat, lng, photos: [{ type: 'normal' | 'headcount', url, ai }], headcount, aiFailed }`, so pages never see server field names. Photo links are built from `Path` (works through the dev proxy).
+`{ username, name, role: 'admin' | 'staff', active, signedIn, createdAt }` and visits to `{ id, date, city, schoolName, staffName, lat, lng, photos: [{ type: 'normal' | 'headcount', url, ai }], headcount, aiFailed }`, so pages never see server field names. Photo links: `Storage: "s3"` → the server's signed `Url`; `Storage: "local"` → built from `Path` through the proxy (the local `Url` is plain http, which an https page can't load).
 
 **First login.** `setup.php` creates two admins, **`EMP001`** and **`EMP002`**. Their passwords come from the server's `.env`
 (`SEED_EMP001_PASSWORD`, `SEED_EMP002_PASSWORD`) and are **not** stored in this app. Ask the server owner. After the first
@@ -264,8 +265,8 @@ curl -X POST "BASE/Staff/visit.php" -H "Authorization: Bearer <token>" \
     "Visit_ID": 12, "Username": "EMP003", "Staff_Name": "Asha Patil",
     "Visit_Date": "2026-11-17", "City": "Mumbai", "School_Name": "Sunrise Public School",
     "Latitude": 19.076, "Longitude": 72.8777,
-    "Normal_Photos": [ { "Photo_ID": 31, "Path": "uploads/visits/12/9f2c….jpg", "Url": "http://…/uploads/visits/12/9f2c….jpg" } ],
-    "AI_Photos": [ { "Photo_ID": 33, "Path": "uploads/visits/12/c41a….jpg", "Url": "http://…", "Face_Count": 27, "AI_Status": "Done" } ],
+    "Normal_Photos": [ { "Photo_ID": 31, "Storage": "s3", "Path": "prod/visits/12/9f2c….jpg", "Url": "https://…signed link…" } ],
+    "AI_Photos": [ { "Photo_ID": 33, "Storage": "local", "Path": "uploads/visits/12/c41a….jpg", "Url": "http://…", "Face_Count": 27, "AI_Status": "Done" } ],
     "Total_Face_Count": 27,
     "Created_AT": "2026-11-17 11:45:10"
   }
@@ -303,7 +304,58 @@ If the AI service fails for a photo, the visit and photo are still saved: that p
 }
 ```
 
-`Cities` lists every configured city (including zero-visit ones) for the caller's scope, unaffected by the `city`/date filters, so it doubles as the drop-down source. `Total` = visits matching the filters (for paging). Photo `Url`s are public links with random file names.
+`Cities` lists every configured city (including zero-visit ones) for the caller's scope, unaffected by the `city`/date filters, so it doubles as the drop-down source. `Total` = visits matching the filters (for paging). Photo `Url`s: local photos are public links with random file names; S3 photos are **temporary signed links** (see [Photo storage](#photo-storage-s3-or-local)).
+
+## Admin · Dashboard: `GET /Admin/dashboard.php`
+
+One call with the numbers for the admin home screen. Admins only (Staff get `403`). GET only.
+
+| Query | Description |
+|---|---|
+| `month` | Optional, `YYYY-MM`. Empty = current month. Any other format → `400`. A month with no visits returns zeros. |
+
+**200** (fields are at the top level, no `Data`)
+
+```json
+{
+  "Status": true,
+  "Month": "2026-11",
+  "Total_Face_Count": 28,
+  "Total_Visits": 7,
+  "Cities": [
+    { "City": "Mumbai", "This_Month_Visits": 4, "Total_Visits": 5 },
+    { "City": "Pune",   "This_Month_Visits": 2, "Total_Visits": 3 },
+    { "City": "Delhi",  "This_Month_Visits": 1, "Total_Visits": 1 }
+  ],
+  "Recent_Visits": [ { "Visit_ID": 7, "…": "same visit object as Create visit" } ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `Month` | The month the numbers are for |
+| `Total_Visits` | Visits in that month, all staff |
+| `Total_Face_Count` | **Sum** of the AI photos' face counts of that month's visits (failed counts skipped) |
+| `Cities` | Every configured city, including 0-visit ones. `This_Month_Visits` follows `month`; `Total_Visits` is all time. `This_Month_Visits` add up to the top `Total_Visits` |
+| `Recent_Visits` | The 5 newest visits of that month, full visit objects with photos (S3 links are temporary) |
+
+How the app shows it: **Students counted (AI)** = `Total_Face_Count` (+ average per visit), **Visits completed** = `Total_Visits`,
+**Cities with visits** = cities with `This_Month_Visits > 0`, **Visits all time** = sum of `Cities[].Total_Visits`,
+**Visits by city** chart = `This_Month_Visits`, **Recent visits** table = `Recent_Visits`.
+
+## Photo storage (S3 or local)
+
+| Situation | What happens |
+|---|---|
+| S3 keys set in `.env` | Photos go to the bucket as `[S3_PREFIX/]visits/<Visit_ID>/<random>.<ext>`; `Storage: "s3"` |
+| S3 keys empty | Saved in `uploads/visits/<Visit_ID>/`; `Storage: "local"` |
+| S3 set but an upload fails | That photo is saved locally (`Storage: "local"`) and the response has a `Warnings` entry |
+| Visit fails after some photos were saved | Rows rolled back and every saved photo (S3 or local) deleted |
+
+The bucket stays private and the API returns **temporary signed links**, unless `S3_PUBLIC_URL` (CDN / public bucket) is set.
+Existing local photos keep working; they are not copied to S3. `.env` keys: `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`,
+`S3_REGION` (default `us-east-1`, e.g. `ap-south-1`), `S3_ENDPOINT` (MinIO / Spaces / R2 only), `S3_PREFIX`, `S3_PUBLIC_URL`.
+`visit_photo_tbl` has a new `Storage` column (run `setup.php` again). Admins also have a log viewer at `/logs/` (v1.4.0).
 
 ---
 
@@ -384,6 +436,9 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-11-18 | 1.5.0 | Added `GET Admin/dashboard.php` (Admins only): month totals (visits, face count), `Cities`, 5 most recent visits. Visit read helpers moved to `visit_helpers.php` (no behaviour change) |
+| 2026-11-17 | 1.4.0 | Admin-only web log viewer at `/logs/`; `logs/.htaccess` blocks every other file |
+| 2026-11-17 | 1.3.0 | Visit photos go to S3 when `S3_BUCKET`/`S3_ACCESS_KEY`/`S3_SECRET_KEY` are set, else `uploads/`. New `storage.php`, `S3_*` `.env` keys, `Storage` column + field on every photo, signed links unless `S3_PUBLIC_URL` |
 | 2026-11-17 | 1.2.0 | Added `Staff/visit.php`: create a visit (multipart, normal + AI photos with face count from the Person Counter) and list/get visits (Staff own, Admin all) with a `Cities` array of this-month/total counts. City list in `config.php` (`VISIT_CITIES`). New tables `visit_tbl`, `visit_photo_tbl`, `uploads/` folder, `.env` keys `PERSON_COUNTER_TIMEOUT`, `MAX_PHOTOS_PER_TYPE`, `MAX_PHOTO_MB` |
 | 2026-11-17 | 1.1.1 | Added `PERSON_COUNTER_API_URL` to `.env` (external Person Counter service) |
 | 2026-11-17 | 1.1.0 | Added `Admin/user.php` (list/get, create, update, enable/disable; Admins only), Try-it console, PUT body support, Authorization header pass-through |
@@ -392,8 +447,8 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 ## Questions / still needed from the server (for this app)
 
 - [ ] **`VISIT_CITIES`**: the docs' example shows Mumbai/Pune/Delhi; it needs the client's **Odisha** city list.
-- [ ] **`Total_Face_Count`**: is it the **sum** of all AI photos or the **highest** single photo? The same children appear in several class photos, so summing over-counts (the plan was "highest"). The app shows the server's value as-is.
-- [ ] **Dashboard stats endpoint** (by month, by city): today the app loads every visit and adds up in the browser. Fine for now, slow at 6,000 visits.
+- [ ] **`Total_Face_Count`**: v1.5.0 docs confirm it's the **sum** of the AI photos. The same children appear in several class photos, so a sum over-counts; it should be the **highest** single photo. The app shows the server's value as-is.
+- [x] ~~Dashboard stats endpoint~~: `Admin/dashboard.php` (v1.5.0). Still missing from it: schools covered, photos, AI-failed visits, last-7-days count, face count per city.
 - [ ] **`search`** param on `GET visit.php` (school / staff name): today the admin list filters in the browser.
 - [ ] Optional: a `District` per city, and visit **edit/delete** for admins.
 - [ ] Excel / PPT export (server-side).

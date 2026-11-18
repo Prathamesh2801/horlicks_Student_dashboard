@@ -196,7 +196,7 @@ GET    /Staff/visit.php          ?visit_id | city, date_from, date_to, username(
 Auth: Bearer token. A 401 sends the user back to /login.
 ```
 
-How the app uses it: visits are **drafted on the phone** (IndexedDB) and the whole visit is uploaded in one request on **Submit**. No signal → it waits ("Waiting to upload") and uploads by itself when back online. Dashboard numbers are added up in the browser from the visit list until the server has a stats endpoint.
+How the app uses it: visits are **drafted on the phone** (IndexedDB) and the whole visit is uploaded in one request on **Submit**. No signal → it waits ("Waiting to upload") and uploads by itself when back online. The admin dashboard reads `Admin/dashboard.php` (one call per month, server v1.5.0); photos come from S3 signed links or local `uploads/`.
 
 ---
 

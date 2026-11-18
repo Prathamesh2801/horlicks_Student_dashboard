@@ -10,11 +10,13 @@ const toDate = (s) => (s ? s.replace(' ', 'T') : null)
 
 // Server visit → app visit (same shape the pages already use)
 function toVisit(v) {
-  const normal = (v.Normal_Photos ?? []).map((p) => ({ id: `n${p.Photo_ID}`, type: 'normal', url: fileUrl(p.Path) }))
+  // S3 photos: the server's temporary signed link (Url). Local photos: Path via our proxy (Url is plain http).
+  const photoUrl = (p) => (p.Storage === 's3' ? p.Url : fileUrl(p.Path))
+  const normal = (v.Normal_Photos ?? []).map((p) => ({ id: `n${p.Photo_ID}`, type: 'normal', url: photoUrl(p) }))
   const ai = (v.AI_Photos ?? []).map((p) => ({
     id: `a${p.Photo_ID}`,
     type: 'headcount',
-    url: fileUrl(p.Path),
+    url: photoUrl(p),
     ai: p.AI_Status === 'Done' ? { status: 'done', count: p.Face_Count } : { status: 'failed' },
   }))
   return {
@@ -109,31 +111,17 @@ export async function createVisit({ date, city, schoolName, lat, lng, normalPhot
   return { visit: toVisit(data.Data), warnings: data.Warnings ?? [] }
 }
 
-// Dashboard numbers for a month ("YYYY-MM"), worked out from the visit list (the server has no stats endpoint yet).
+// Admin dashboard for a month ("YYYY-MM"): one call to Admin/dashboard.php (admins only).
 export async function getStats({ month }) {
-  const [y, m] = month.split('-').map(Number)
-  const dateFrom = `${month}-01`
-  const dateTo = `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
-  const weekAgo = new Date(Date.now() - 7 * 86400000).toLocaleDateString('en-CA')
-  const [visits, lastWeek] = await Promise.all([listVisits({ dateFrom, dateTo }), listVisits({ dateFrom: weekAgo })])
-
-  const sum = (list) => list.reduce((s, v) => s + (v.headcount ?? 0), 0)
-  const byCityMap = new Map()
-  for (const v of visits) {
-    const c = byCityMap.get(v.city) ?? { cityId: v.city, city: v.city, visits: 0, students: 0 }
-    c.visits += 1
-    c.students += v.headcount ?? 0
-    byCityMap.set(v.city, c)
-  }
+  const data = await api.get('/Admin/dashboard.php', { params: { month } })
+  const byCity = data.Cities.map((c) => ({ city: c.City, visits: c.This_Month_Visits, allTime: c.Total_Visits }))
   return {
-    totalVisits: visits.length,
-    completed: visits.length,
-    students: sum(visits),
-    studentsThisWeek: sum(lastWeek),
-    schools: new Set(visits.map((v) => `${v.city}|${v.schoolName.trim().toLowerCase()}`)).size,
-    photos: visits.reduce((s, v) => s + v.photoCount, 0),
-    aiFailed: visits.filter((v) => v.aiFailed).length,
-    byCity: [...byCityMap.values()].sort((a, b) => b.students - a.students),
-    recent: visits.slice(0, 5),
+    month: data.Month,
+    visits: data.Total_Visits,
+    students: data.Total_Unique_Person_Count,
+    allTimeVisits: byCity.reduce((s, c) => s + c.allTime, 0),
+    activeCities: byCity.filter((c) => c.visits).length,
+    byCity: byCity.sort((a, b) => b.visits - a.visits || b.allTime - a.allTime),
+    recent: data.Recent_Visits.map(toVisit),
   }
 }

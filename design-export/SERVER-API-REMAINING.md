@@ -1,9 +1,9 @@
 # Server API: what is still needed
 
-> For the server team · from the React app (frontend) · 17 Nov 2026 · based on API **v1.2.0**
+> For the server team · from the React app (frontend) · updated 18 Nov 2026 · based on API **v1.5.0**
 > Current API reference: [`docs/SERVER_API.md`](../docs/SERVER_API.md) · live docs: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 
-The app is fully connected to v1.2.0 (login, users, visits with photos + AI count). Nothing in the app uses mock data any more.
+The app is fully connected to v1.5.0 (login, users, visits with photos + AI count, S3/local photo links, admin dashboard). Nothing in the app uses mock data any more.
 This list is what the server still needs so the app doesn't have to compute things in the browser, plus a few fixes found while connecting.
 
 All shapes below follow the existing conventions: PascalCase fields, `{ "Status": true|false, "Message": "...", "Data": ... }`, Bearer token, `400` with `Errors` per field.
@@ -15,10 +15,10 @@ All shapes below follow the existing conventions: PascalCase fields, `{ "Status"
 | # | Item | Type | Priority | Why |
 |---|---|---|---|---|
 | 1 | Odisha city list (+ district) | Config change | **P1, before field use** | Docs example has Mumbai/Pune/Delhi |
-| 2 | `Total_Face_Count` = **highest** photo, not sum | Logic fix | **P1** | Same children appear in several class photos; a sum over-counts |
+| 2 | `Total_Face_Count` = **highest** photo, not sum | Logic fix | **P1** | v1.5.0 docs confirm it's a **sum**; same children appear in several class photos, so it over-counts |
 | 3 | `client_ref` on create visit (no duplicate visits) | Small change | **P1** | The app retries uploads after a timeout; without this a retry can create the visit twice |
 | 4 | PHP / Apache limits for uploads + AI time | Server config | **P1** | 10 AI photos × 60 s can exceed default `max_execution_time` (30 s) |
-| 5 | Dashboard stats endpoint | New endpoint | **P1** | Today the app downloads every visit to add up totals; too slow at 6,000 visits |
+| 5 | ~~Dashboard stats endpoint~~ ✅ v1.5.0 · a few extra fields | Small change | P2 | `Admin/dashboard.php` is live and used; schools / photos / per-city counts still missing |
 | 6 | `search` on visit list | Small change | P2 | Admin search by school / staff name |
 | 7 | Photo metadata (GPS + time per photo) | Small change | P2 | Client asked for lat/long + timestamp per picture; app already records it |
 | 8 | School master list | New endpoint + table | P2 | Pick school instead of typing; "x% of 6,000 schools"; GPS distance check |
@@ -86,50 +86,30 @@ One visit = up to 10 normal + 10 AI photos (the app compresses each to ~150–30
 
 > Optional improvement: count AI photos in parallel, or return `201` right away with `AI_Status: "Pending"` and count in the background. The app can show "counting…" again if you do this; tell us the shape.
 
-### 5. Dashboard stats endpoint
+### 5. Dashboard: extra fields on `Admin/dashboard.php`
 
-Today the dashboard downloads **all** visits (100 per request) and adds them up in the browser. Please add:
+✅ **Done in v1.5.0**: the admin dashboard now makes one call to `GET /Admin/dashboard.php?month=YYYY-MM` and shows
+students counted, visits, cities with visits, all-time visits, visits by city, and the 5 recent visits.
 
-`GET /Admin/stats.php` (Admin only)
-
-| Query | Description |
-|---|---|
-| `month` | `YYYY-MM` (default: current month, IST) |
-| `city` | Optional: only this city |
-
-**200**
+The original design also had these tiles, which the endpoint doesn't return yet (so the app hides them for now). Please add when possible:
 
 ```json
 {
-  "Status": true,
-  "Month": "2026-11",
-  "Totals": {
-    "Visits": 4380,
-    "Students": 158210,
-    "Students_Last_7_Days": 8420,
-    "Schools": 4212,
-    "Photos": 61320,
-    "AI_Failed_Visits": 26
-  },
-  "Total_Schools": 6000,
-  "By_City": [
-    { "City": "Bhubaneswar", "District": "Khordha", "Visits": 812, "Students": 24800 },
-    { "City": "Cuttack",     "District": "Cuttack", "Visits": 701, "Students": 21400 }
-  ],
-  "Recent": [ { "Visit_ID": 12, "…": "same visit object as Staff/visit.php, latest 5" } ]
+  "Schools": 4212,
+  "Photos": 61320,
+  "AI_Failed_Visits": 26,
+  "Face_Count_Last_7_Days": 8420,
+  "Cities": [ { "City": "Bhubaneswar", "This_Month_Visits": 4, "Total_Visits": 19, "Face_Count": 1240 } ]
 }
 ```
 
 | Field | How to compute |
 |---|---|
-| `Visits` | Visits with `Visit_Date` in the month |
-| `Students` | Sum of each visit's `Total_Face_Count` (the per-visit highest, see #2) |
-| `Students_Last_7_Days` | Same, for `Visit_Date` ≥ today − 7 (independent of `month`) |
-| `Schools` | Distinct schools visited in the month (`School_ID` once #8 exists; until then distinct `City` + lower-cased `School_Name`) |
-| `Photos` | Normal + AI photos of those visits |
-| `AI_Failed_Visits` | Visits with at least one AI photo `AI_Status = "Failed"` |
-| `Total_Schools` | Programme size (6000 today, or count of the school master list, #8). Today it is hard-coded in the app's `config.js` |
-| `By_City` | Grouped by city, sorted by `Students` desc |
+| `Schools` | Distinct schools visited in the month (`City` + trimmed, lower-case `School_Name` until there's a school master list, item 8) → "x% of 6,000 schools" tile |
+| `Photos` | Photos (normal + AI) of the month's visits |
+| `AI_Failed_Visits` | Visits in the month with at least one `AI_Status = "Failed"` photo |
+| `Face_Count_Last_7_Days` | Same face count, visits dated in the last 7 days → "+N this week" |
+| `Cities[].Face_Count` | Face count per city for the month → "Students counted by city" chart (today it charts visits) |
 
 ---
 
@@ -271,7 +251,7 @@ Each item is a small change in one service file. Pages don't change:
 | 1, 6 | `src/services/api/visits.service.js` (`getCities`, `listVisits`) |
 | 2 | nothing (app already shows `Total_Face_Count`) |
 | 3, 7 | `createVisit` in `visits.service.js` (send `client_ref`, `photo_meta`) |
-| 5 | `getStats` in `visits.service.js` → call `Admin/stats.php` instead of adding up in the browser |
+| 5 | ✅ `getStats` in `visits.service.js` already calls `Admin/dashboard.php`; extra fields → `KpiTiles` / `CityChart` |
 | 8 | new `schools.service.js` + school picker in the New visit form |
 | 9, 10 | `visits.service.js` + admin Visit detail page (review buttons, check badges) |
 | 11 | Visits page **Export** button |
