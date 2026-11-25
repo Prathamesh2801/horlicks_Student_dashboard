@@ -32,9 +32,9 @@ function LocationBox({ geo, onRetry }) {
   )
 }
 
-// Step 1 of a visit: Date, City (server list, cached for offline use), School name + GPS.
+// Step 1 of a visit: Date, City (server list, cached for offline use), School name, POC name + contact number, GPS.
 export default function VisitDetailsForm({ onSubmit, submitting }) {
-  const [form, setForm] = useState({ date: todayISO(), city: '', schoolName: '' })
+  const [form, setForm] = useState({ date: todayISO(), city: '', schoolName: '', pocName: '', pocContact: '' })
   const [cities, setCities] = useState([])
   const [citiesError, setCitiesError] = useState(null)
   const geo = useGeolocation()
@@ -46,13 +46,14 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   }, [locate])
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
-  const ready = form.date && form.city && form.schoolName.trim().length >= 2 && geo.coords
+  const contactOk = /^[6-9]\d{9}$/.test(form.pocContact.replace(/\D/g, '').slice(-10))
+  const ready = form.date && form.city && form.schoolName.trim().length >= 2 && form.pocName.trim().length >= 2 && contactOk && geo.coords
 
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!ready) return
     const { lat, lng, accuracy } = geo.coords
-    onSubmit({ ...form, schoolName: form.schoolName.trim(), lat, lng, accuracy })
+    onSubmit({ ...form, schoolName: form.schoolName.trim(), pocName: form.pocName.trim(), pocContact: form.pocContact.replace(/\D/g, '').slice(-10), lat, lng, accuracy })
   }
 
   return (
@@ -76,6 +77,19 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           minLength={2}
           maxLength={150}
           autoComplete="off"
+          required
+        />
+        <Input label="POC name" value={form.pocName} onChange={set('pocName')} minLength={2} maxLength={100} autoComplete="off" required />
+        <Input
+          label="Contact number"
+          type="tel"
+          inputMode="numeric"
+          placeholder="10-digit mobile number"
+          value={form.pocContact}
+          onChange={set('pocContact')}
+          maxLength={14}
+          autoComplete="off"
+          hint={form.pocContact && !contactOk ? 'Enter a 10-digit mobile number' : undefined}
           required
         />
         <LocationBox geo={geo} onRetry={() => locate().catch(() => {})} />

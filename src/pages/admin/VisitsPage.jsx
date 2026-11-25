@@ -1,24 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { MdDownload } from 'react-icons/md'
+import { MdDoneAll } from 'react-icons/md'
+import ExportMenu from '../../components/common/ExportMenu'
 import PageHeader from '../../components/common/PageHeader'
-import { LoadError, NoResults, Pagination, RefreshBar, StaleBanner, TableSkeleton, TableToolbar, useTableState } from '../../components/table'
+import { LoadError, NoResults, Pagination, PeriodFilter, RefreshBar, StaleBanner, TableSkeleton, TableToolbar, useTableState } from '../../components/table'
 import { Button, Card, Select } from '../../components/ui'
-import { PERIODS, periodRange } from '../../constants/visit'
-import { VISIT_SORT, VisitsTable } from '../../features/monitoring'
+import { periodRange, REVIEW, REVIEW_FILTERS } from '../../constants/visit'
+import { AI_FILTERS, staffOptions, VISIT_FILTERS, VISIT_SORT, visitMatches, VisitsTable } from '../../features/monitoring'
 import { useAsync } from '../../hooks/useAsync'
+import { usePendingChanges } from '../../hooks/usePendingChanges'
+import { setReviews } from '../../services/api/pending.service'
 import { getCities, listVisits } from '../../services/api/visits.service'
-import { downloadCsv } from '../../utils/downloadCsv'
 import { formatNumber, formatTime, todayISO } from '../../utils/format'
-
-const FILTERS = { city: '', period: 'this', ai: '' }
-
-const AI_FILTERS = [
-  { value: 'counted', label: 'AI counted' },
-  { value: 'failed', label: 'AI count failed' },
-  { value: 'none', label: 'No AI photos' },
-]
-const aiState = (v) => (v.aiFailed ? 'failed' : v.photos.some((p) => p.type === 'headcount') ? 'counted' : 'none')
 
 // Phones have no column headers, so sorting is a menu there.
 const SORT_OPTIONS = [
@@ -28,76 +21,107 @@ const SORT_OPTIONS = [
   { value: 'school', label: 'School A–Z' },
   { value: 'city', label: 'City A–Z' },
   { value: 'staff', label: 'Staff A–Z' },
+  { value: 'review', label: 'Review status' },
 ]
 
-function exportCsv(visits) {
-  downloadCsv(`visits-${todayISO()}.csv`, [
-    ['Visit ID', 'Date', 'School', 'City', 'Staff', 'Photos', 'Unique students', 'Faces (incl. repeats)', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
-    ...visits.map((v) => [v.id, v.date, v.schoolName, v.cityName, v.staffName, v.photoCount, v.headcount, v.facesSeen, v.aiFailed, v.lat, v.lng, v.submittedAt]),
-  ])
-}
+const exportRows = (visits) => [
+  ['Visit ID', 'Date', 'School', 'City', 'Staff', 'POC name', 'POC contact', 'Review', 'Photos', 'Unique students', 'Faces (incl. repeats)', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
+  ...visits.map((v) => [
+    v.id, v.date, v.schoolName, v.cityName, v.staffName, v.pocName, v.pocContact, REVIEW[v.review]?.label,
+    v.photoCount, v.headcount, v.facesSeen, v.aiFailed, v.lat, v.lng, v.submittedAt,
+  ]),
+]
 
-// City + period are filtered by the server; search, AI filter, sorting and paging happen here.
+// City + period are filtered by the server; search, staff, AI, review, sorting and paging happen here.
 // Everything is kept in the URL, so Back from a visit returns to the same view.
 export default function VisitsPage() {
   const [params] = useSearchParams()
-  const city = params.get('city') ?? FILTERS.city
-  const period = params.get('period') ?? FILTERS.period
+  const get = (k) => params.get(k) ?? VISIT_FILTERS[k]
+  const [city, period, from, to] = ['city', 'period', 'from', 'to'].map(get)
 
-  const load = useCallback(() => listVisits({ city, ...periodRange(period) }), [city, period])
+  const load = useCallback(() => listVisits({ city, ...periodRange(period, from, to) }), [city, period, from, to])
   const { data, error, loading, refreshing, loadedAt, reload } = useAsync(load)
+  usePendingChanges(reload)
 
   const table = useTableState({
     rows: data,
-    filters: FILTERS,
+    filters: VISIT_FILTERS,
     defaultSort: '-date',
     sortValue: VISIT_SORT,
-    searchText: (v) => `${v.schoolName} ${v.staffName} ${v.cityName}`,
-    matches: (v, s) => !s.ai || aiState(v) === s.ai,
+    searchText: (v) => `${v.schoolName} ${v.staffName} ${v.cityName} ${v.pocName ?? ''}`,
+    matches: visitMatches,
   })
 
   const [cities, setCities] = useState([])
   useEffect(() => {
     getCities().then(setCities, () => {})
   }, [])
+  const staff = useMemo(() => staffOptions(data), [data])
+  const counts = useMemo(() => Object.fromEntries(Object.keys(REVIEW).map((k) => [k, (data ?? []).filter((v) => v.review === k).length])), [data])
+  const waitingShown = (table.filtered ?? []).filter((v) => v.review === 'waiting')
+
+  const approveShown = () => {
+    if (window.confirm(`Approve ${waitingShown.length} visits? They will appear for the client.`))
+      setReviews(
+        waitingShown.map((v) => v.id),
+        'approved',
+      )
+  }
 
   return (
     <div className="space-y-4">
       <PageHeader
         title="Visits"
         subtitle={
-          loading ? 'Loading…' : `${formatNumber(table.total)} visit${table.total === 1 ? '' : 's'}${loadedAt ? ` · updated ${formatTime(loadedAt)}` : ''} · click a row to open it`
+          loading
+            ? 'Loading…'
+            : `${formatNumber(table.total)} visit${table.total === 1 ? '' : 's'} · ${formatNumber(counts.approved)} approved · ${formatNumber(counts.waiting)} waiting for review${loadedAt ? ` · updated ${formatTime(loadedAt)}` : ''}`
         }
         action={
-          <Button variant="secondary" onClick={() => exportCsv(table.filtered)} disabled={!table.total}>
-            <MdDownload className="size-5" /> Export
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {table.state.review === 'waiting' && waitingShown.length > 0 && (
+              <Button onClick={approveShown}>
+                <MdDoneAll className="size-5" /> Approve {formatNumber(waitingShown.length)}
+              </Button>
+            )}
+            <ExportMenu filename={`visits-${todayISO()}`} getRows={() => exportRows(table.filtered)} count={table.total} noun="visits" disabled={!table.total} />
+          </div>
         }
       />
 
-      <TableToolbar table={table} placeholder="Search school, staff or city" onRefresh={reload} refreshing={refreshing} sortOptions={SORT_OPTIONS}>
+      <TableToolbar table={table} placeholder="Search school, staff, city or POC" onRefresh={reload} refreshing={refreshing} sortOptions={SORT_OPTIONS}>
         <Select
-          className="w-full sm:w-44"
+          className="w-[calc(50%-0.25rem)] sm:w-40"
           aria-label="City"
           placeholder="All cities"
           value={table.state.city}
           onChange={(e) => table.set({ city: e.target.value })}
           options={cities.map((c) => ({ value: c, label: c }))}
         />
+        <PeriodFilter table={table} />
         <Select
           className="w-[calc(50%-0.25rem)] sm:w-40"
-          aria-label="Period"
-          value={table.state.period}
-          onChange={(e) => table.set({ period: e.target.value })}
-          options={PERIODS}
+          aria-label="Staff"
+          placeholder="All staff"
+          value={table.state.staff}
+          onChange={(e) => table.set({ staff: e.target.value })}
+          options={staff}
         />
         <Select
-          className="w-[calc(50%-0.25rem)] sm:w-44"
+          className="w-[calc(50%-0.25rem)] sm:w-40"
           aria-label="AI count"
           placeholder="All AI results"
           value={table.state.ai}
           onChange={(e) => table.set({ ai: e.target.value })}
           options={AI_FILTERS}
+        />
+        <Select
+          className="w-[calc(50%-0.25rem)] sm:w-40"
+          aria-label="Review"
+          placeholder="All reviews"
+          value={table.state.review}
+          onChange={(e) => table.set({ review: e.target.value })}
+          options={REVIEW_FILTERS}
         />
       </TableToolbar>
 
@@ -111,10 +135,7 @@ export default function VisitsPage() {
           {loading ? (
             <TableSkeleton />
           ) : table.total === 0 ? (
-            <NoResults
-              onClear={table.isFiltered ? table.reset : undefined}
-              text={table.isFiltered ? undefined : 'No visits in this period yet.'}
-            />
+            <NoResults onClear={table.isFiltered ? table.reset : undefined} text={table.isFiltered ? undefined : 'No visits in this period yet.'} />
           ) : (
             <div className={`transition-opacity ${refreshing ? 'opacity-60' : ''}`}>
               <VisitsTable visits={table.rows} table={table} />

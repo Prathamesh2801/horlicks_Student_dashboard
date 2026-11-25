@@ -5,6 +5,7 @@ import { Card } from '../../../components/ui'
 import { formatCoords, formatDate, formatDateTime, mapUrl } from '../../../utils/format'
 import HeadcountSummary from './HeadcountSummary'
 import PhotoGrid from './PhotoGrid'
+import ReviewCard from './ReviewCard'
 
 function Row({ label, children }) {
   return (
@@ -66,6 +67,16 @@ export default function VisitDetail({ visit, admin }) {
           {visit.cityName}
         </Row>
         <Row label="Visit date">{formatDate(visit.date)}</Row>
+        {visit.pocName && (
+          <Row label="POC">
+            {visit.pocName}
+            {visit.pocContact && (
+              <a href={`tel:${visit.pocContact}`} className="block font-normal text-brand-700 hover:underline">
+                {visit.pocContact}
+              </a>
+            )}
+          </Row>
+        )}
         <Row label="Staff">{visit.staffName}</Row>
         <Row label="Submitted">{formatDateTime(visit.submittedAt)}</Row>
         {admin ? (
@@ -83,18 +94,28 @@ export default function VisitDetail({ visit, admin }) {
 
   const headSection = (
     <section>
-      <h2 className="mb-2 font-bold">Headcount photos · AI count ({head.length})</h2>
+      <h2 className="mb-2 font-bold">
+        Headcount photos · AI count ({head.length})
+        {admin && <span className="ml-1 text-sm font-normal text-gray-500">· shown to the client once the visit is approved</span>}
+      </h2>
       {head.length ? <PhotoGrid photos={head} className="grid-cols-3" /> : <p className="text-sm text-gray-500">No headcount photos.</p>}
     </section>
   )
 
   const normalSection = (
     <section>
-      <h2 className="mb-2 font-bold">Normal photos ({normal.length})</h2>
+      <h2 className="mb-2 font-bold">
+        Normal photos ({normal.length})
+        {admin && normal.length > 0 && (
+          <span className="ml-1 text-sm font-normal text-gray-500">
+            · {normal.filter((p) => p.show).length} shown to client · {normal.filter((p) => p.best).length} ★ best
+          </span>
+        )}
+      </h2>
       {normal.length ? (
         <PhotoGrid
           photos={normal}
-          label={admin ? 'Normal' : undefined}
+          flags={admin}
           className={admin ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-6' : 'grid-cols-4'}
         />
       ) : (
@@ -121,6 +142,7 @@ export default function VisitDetail({ visit, admin }) {
         {normalSection}
       </div>
       <div className="space-y-6">
+        <ReviewCard visit={visit} />
         {details}
         <LocationCard visit={visit} />
       </div>

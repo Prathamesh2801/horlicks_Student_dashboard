@@ -8,7 +8,7 @@ export default function AuthProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      user: auth?.user ?? null, // { username, name, role: 'admin' | 'staff' }
+      user: auth?.user ?? null, // { username, name, role: 'admin' | 'staff' | 'client' }
       async login(username, password) {
         const session = await apiLogin({ username, password })
         authStore.set(session)

@@ -8,26 +8,35 @@ import {
   MdBolt,
   MdCheckCircle,
   MdContentCopy,
+  MdDesktopWindows,
   MdDownload,
   MdHome,
   MdMoreVert,
   MdOpenInFull,
+  MdPushPin,
   MdToggleOn,
   MdWifiOff,
 } from 'react-icons/md'
 import { Button, Modal } from '../../components/ui'
 import { installActions, recentlyDismissed, useInstall } from './installStore'
-import { iosBrowser, isIOS, isIPad } from './platform'
+import { iosBrowser, isDesktop, isIOS, isIPad } from './platform'
 
 // When the sheet opens by itself on a first visit (ms). Android waits for Chrome's install event,
 // which can take a few seconds, so it only falls back to manual steps if the event never comes.
 const AUTO_OPEN_DELAY = { prompt: 1500, ios: 2500, inapp: 2500, android: 10000 }
 
-const BENEFITS = [
-  { icon: MdWifiOff, text: 'Works offline: visits and photos are saved on your phone' },
-  { icon: MdOpenInFull, text: 'Opens full screen, like a normal app' },
-  { icon: MdBolt, text: 'One tap from your home screen' },
-]
+// Computers get the same one-click install; only the wording differs.
+const BENEFITS = isDesktop
+  ? [
+      { icon: MdDesktopWindows, text: 'Opens in its own window, like a desktop app' },
+      { icon: MdPushPin, text: 'Start it from your taskbar, Start menu or Dock' },
+      { icon: MdBolt, text: 'Loads fast, even on a slow connection' },
+    ]
+  : [
+      { icon: MdWifiOff, text: 'Works offline: visits and photos are saved on your phone' },
+      { icon: MdOpenInFull, text: 'Opens full screen, like a normal app' },
+      { icon: MdBolt, text: 'One tap from your home screen' },
+    ]
 
 function AppCard() {
   return (
@@ -184,6 +193,7 @@ const TITLES = {
 const SUBTITLES = {
   ios: 'Free · no App Store needed · takes 20 seconds',
   inapp: 'One more step before installing',
+  prompt: isDesktop ? 'Free · opens in its own window' : undefined,
 }
 
 // Asks the user to install the app, with the right flow for their device.

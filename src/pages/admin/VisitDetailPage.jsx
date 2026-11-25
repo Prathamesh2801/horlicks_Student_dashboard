@@ -1,7 +1,8 @@
 import { useNavigate, useParams } from 'react-router'
 import PageHeader from '../../components/common/PageHeader'
-import { Spinner } from '../../components/ui'
-import { useVisit, VisitDetail, VisitStatusBadge } from '../../features/visits'
+import { Badge, Spinner } from '../../components/ui'
+import { REVIEW } from '../../constants/visit'
+import { useVisit, VisitDetail } from '../../features/visits'
 import { formatDate } from '../../utils/format'
 
 export default function VisitDetailPage() {
@@ -17,7 +18,7 @@ export default function VisitDetailPage() {
       <PageHeader
         title={
           <>
-            {visit.schoolName} <VisitStatusBadge status={visit.status} />
+            {visit.schoolName} <Badge tone={REVIEW[visit.review].tone}>{REVIEW[visit.review].label}</Badge>
           </>
         }
         subtitle={`${visit.cityName} · ${visit.staffName} · ${formatDate(visit.date)}`}

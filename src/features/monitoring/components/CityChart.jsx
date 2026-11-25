@@ -18,7 +18,7 @@ export default function CityChart({ rows, period }) {
               <div
                 key={r.city}
                 className="flex min-w-16 flex-1 flex-col items-center px-1.5 sm:min-w-20 sm:px-3"
-                title={`${r.city}: ${formatNumber(r.visits)} visits this month, ${formatNumber(r.allTime)} all time`}
+                title={`${r.city}: ${formatNumber(r.visits)} visits`}
               >
                 <div className="flex h-56 w-full flex-col items-center justify-end border-b border-gray-200">
                   <span className={`mb-1 text-xs font-bold ${i === 0 ? 'text-brand-700' : 'text-gray-700'}`}>{formatCompact(r.visits)}</span>

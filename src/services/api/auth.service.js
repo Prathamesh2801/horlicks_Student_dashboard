@@ -7,7 +7,7 @@ const LOGOUT = '/auth.php?do=logout'
 // Server login response → app session
 const toSession = (d) => ({
   token: d.Token,
-  user: { username: d.Username, name: d.Full_Name, role: d.Role?.toLowerCase() }, // role: 'admin' | 'staff'
+  user: { username: d.Username, name: d.Full_Name, role: d.Role?.toLowerCase() }, // role: 'admin' | 'staff' | 'client'
 })
 
 // Errors: 400 missing field, 401 "Invalid credentials", 429 "Too many login attempts…"

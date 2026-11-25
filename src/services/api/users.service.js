@@ -3,7 +3,8 @@ import { api } from './client'
 // Server: Admin/user.php, admins only (see docs/SERVER_API.md → Admin · Users)
 const USERS = '/Admin/user.php'
 
-const toServerRole = (role) => (role === 'admin' ? 'Admin' : 'Staff')
+// 'Client' = read-only client view (server: role not added yet, see docs/SERVER_API.md)
+const toServerRole = (role) => ({ admin: 'Admin', client: 'Client' })[role] ?? 'Staff'
 // "2026-11-17 11:20:05" (server time, IST) → "2026-11-17T11:20:05"
 const toDate = (s) => (s ? s.replace(' ', 'T') : null)
 
@@ -11,7 +12,7 @@ const toDate = (s) => (s ? s.replace(' ', 'T') : null)
 const toUser = (u) => ({
   username: u.Username,
   name: u.Full_Name,
-  role: u.Role?.toLowerCase(), // 'admin' | 'staff'
+  role: u.Role?.toLowerCase(), // 'admin' | 'staff' | 'client'
   active: u.Status === 'Active',
   signedIn: Boolean(u.Has_Session),
   createdAt: toDate(u.Created_AT),

@@ -5,8 +5,9 @@ import { Button, Input, Select } from '../ui'
 const SEARCH_DELAY = 250 // ms after the last keystroke before the list (and URL) updates
 
 // Search box + filter selects (children) + refresh, with "Clear filters" and a phone-only sort menu.
+// hideSearch: filters only (e.g. the dashboard).
 //   sortOptions: [{ value: '-date', label: 'Newest first' }, ...] for phones (no column headers there)
-export default function TableToolbar({ table, placeholder = 'Search', onRefresh, refreshing, sortOptions, children }) {
+export default function TableToolbar({ table, placeholder = 'Search', hideSearch, onRefresh, refreshing, sortOptions, children }) {
   // What's typed but not yet applied, so fast typing never loses characters.
   const [draft, setDraft] = useState(null)
   const timer = useRef(null)
@@ -28,28 +29,30 @@ export default function TableToolbar({ table, placeholder = 'Search', onRefresh,
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          className="min-w-0 flex-[1_1_14rem]"
-          icon={MdSearch}
-          type="search"
-          enterKeyHint="search"
-          placeholder={placeholder}
-          aria-label={placeholder}
-          value={value}
-          onChange={(e) => search(e.target.value)}
-          suffix={
-            value && (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                aria-label="Clear search"
-              >
-                <MdClose className="size-4" />
-              </button>
-            )
-          }
-        />
+        {!hideSearch && (
+          <Input
+            className="min-w-0 flex-[1_1_14rem]"
+            icon={MdSearch}
+            type="search"
+            enterKeyHint="search"
+            placeholder={placeholder}
+            aria-label={placeholder}
+            value={value}
+            onChange={(e) => search(e.target.value)}
+            suffix={
+              value && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                  aria-label="Clear search"
+                >
+                  <MdClose className="size-4" />
+                </button>
+              )
+            }
+          />
+        )}
         {onRefresh && (
           <Button
             variant="secondary"

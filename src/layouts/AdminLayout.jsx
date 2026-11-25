@@ -1,20 +1,48 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { NavLink, Outlet, useLocation } from 'react-router'
-import { MdDashboard, MdFormatListBulleted, MdInstallDesktop, MdLogout, MdMap, MdMenu, MdPerson } from 'react-icons/md'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
+import {
+  MdDashboard,
+  MdFlag,
+  MdFormatListBulleted,
+  MdInstallDesktop,
+  MdLink,
+  MdLogout,
+  MdMap,
+  MdMenu,
+  MdPerson,
+  MdPhotoLibrary,
+  MdVisibility,
+} from 'react-icons/md'
 import Logo from '../components/common/Logo'
 import { Avatar } from '../components/ui'
 import { useAuth } from '../features/auth'
 import { installActions, useInstall } from '../features/pwa'
 
-const NAV = [
-  { to: '/admin', label: 'Dashboard', icon: MdDashboard, end: true },
-  { to: '/admin/users', label: 'Users', icon: MdPerson },
-  { to: '/admin/visits', label: 'Visits', icon: MdFormatListBulleted },
-  { to: '/admin/map', label: 'Map', icon: MdMap },
-]
+const ADMIN = {
+  area: 'Admin dashboard',
+  role: 'Admin',
+  nav: [
+    { to: '/admin', label: 'Dashboard', icon: MdDashboard, end: true },
+    { to: '/admin/users', label: 'Users', icon: MdPerson },
+    { to: '/admin/visits', label: 'Visits', icon: MdFormatListBulleted },
+    { to: '/admin/map', label: 'Map', icon: MdMap },
+    { to: '/admin/target', label: 'Target', icon: MdFlag },
+    { to: '/admin/reports', label: 'Reports', icon: MdLink },
+  ],
+}
+// Read-only client view (also opened by admins as a preview).
+const CLIENT = {
+  area: 'Client view · read only',
+  role: 'Client',
+  nav: [
+    { to: '/client', label: 'Overview', icon: MdDashboard, end: true },
+    { to: '/client/map', label: 'Map', icon: MdMap },
+    { to: '/client/gallery', label: 'Gallery', icon: MdPhotoLibrary },
+  ],
+}
 
-function Sidebar({ onNavigate }) {
+function Sidebar({ onNavigate, area }) {
   const { user, logout } = useAuth()
   const { canInstall } = useInstall()
   return (
@@ -22,10 +50,10 @@ function Sidebar({ onNavigate }) {
       <div className="mb-8 px-2">
         <Logo className="h-12 w-auto" />
         <p className="mt-3 font-bold text-brand-700">School Activity</p>
-        <p className="text-xs text-gray-500">Admin dashboard</p>
+        <p className="text-xs text-gray-500">{area.area}</p>
       </div>
       <nav className="flex flex-col gap-1">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
+        {area.nav.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -43,6 +71,15 @@ function Sidebar({ onNavigate }) {
           </NavLink>
         ))}
       </nav>
+      {user.role === 'admin' && area === ADMIN && (
+        <Link
+          to="/client"
+          onClick={onNavigate}
+          className="mt-4 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+        >
+          <MdVisibility className="size-5" /> Preview client view
+        </Link>
+      )}
       {canInstall && (
         <button
           onClick={() => {
@@ -58,7 +95,7 @@ function Sidebar({ onNavigate }) {
         <Avatar name={user.name} className="bg-sun-400 text-brand-900" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{user.name}</p>
-          <p className="text-xs text-gray-500">Admin</p>
+          <p className="text-xs text-gray-500">{area.role}</p>
         </div>
         <button onClick={logout} className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-200" aria-label="Log out" title="Log out">
           <MdLogout className="size-5" />
@@ -68,14 +105,16 @@ function Sidebar({ onNavigate }) {
   )
 }
 
-export default function AdminLayout() {
+// Sidebar + page for the admin dashboard, or the client view (area={CLIENT}).
+export default function AdminLayout({ area = ADMIN }) {
   const { pathname } = useLocation()
+  const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <div className="min-h-dvh lg:pl-64">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-gray-200 lg:block">
-        <Sidebar />
+        <Sidebar area={area} />
       </aside>
 
       <AnimatePresence>
@@ -89,7 +128,7 @@ export default function AdminLayout() {
               exit={{ x: -300 }}
               transition={{ type: 'tween', duration: 0.2 }}
             >
-              <Sidebar onNavigate={() => setMenuOpen(false)} />
+              <Sidebar area={area} onNavigate={() => setMenuOpen(false)} />
             </motion.aside>
           </motion.div>
         )}
@@ -110,8 +149,22 @@ export default function AdminLayout() {
         transition={{ duration: 0.2 }}
         className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8"
       >
+        {area === CLIENT && user.role === 'admin' && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-purple-50 px-4 py-2.5 text-sm text-purple-800 ring-1 ring-purple-100">
+            <span>
+              <b>Client preview.</b> This is what a Client login sees: approved visits only, no staff data.
+            </span>
+            <Link to="/admin" className="font-semibold hover:underline">
+              ← Back to admin
+            </Link>
+          </div>
+        )}
         <Outlet />
       </motion.main>
     </div>
   )
+}
+
+export function ClientLayout() {
+  return <AdminLayout area={CLIENT} />
 }

@@ -8,8 +8,8 @@ Source: [2026-11-20-revised-scope.md](2026-11-20-revised-scope.md). Full breakdo
 |---|---|---|
 | One shared staff login, plus a name dropdown | Keep individual logins. Don't design the shared login or the dropdown until the client decides. | ⏸ |
 | Separate admin and client logins | A Client role with a read-only view (Overview, Map, Gallery). No users tab and no staff data. | ✅ |
-| Targets vs achievement with progress bars, run-rate, required per day and projected finish | **One overall target, counted in visits**, with a progress bar, %, run-rate, required per day and projected finish | ✅ |
-| Client: target vs achievement **by city** | Overall target only, no target per city. The "Visits by city" chart (actual counts) stays on the dashboards. | ⚠️ |
+| Targets vs achievement with progress bars, run-rate, required per day and projected finish | **A target per city**, counted in approved visits. The overall target is their total. Admin dashboard: overall card plus a city table (progress, run-rate, needed per day, projected finish, status). | ✅ |
+| Client: target vs achievement **by city** | Shown on the client overview: overall, plus each city with a progress bar and projected finish. The shared report keeps the overall target only. | ✅ |
 | Exports: Excel, CSV, **PDF**, one-click report or **PPT** | **Decided:** Excel and CSV only, with no PDF or PPT | ✅ decided |
 | Campaign report with charts and sample photos | **Decided:** the admin generates a **report link** (a web page), not a per-city report. By default it holds **all approved visits**, filtered by date, city, staff and AI. The admin can also tick only certain visits. Photos: ★ Best first, then "View more". | ✅ decided |
 | Client: download the summary report (PDF or PPT) | **Decided:** only the admin generates reports and sends the URL to the client. The client view has no report button. | ✅ decided |

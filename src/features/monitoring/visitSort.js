@@ -7,4 +7,5 @@ export const VISIT_SORT = {
   photos: (v) => v.photoCount,
   count: (v) => v.headcount,
   ai: (v) => v.aiFailed,
+  review: (v) => v.review,
 }

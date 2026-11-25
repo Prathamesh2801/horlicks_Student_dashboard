@@ -449,8 +449,22 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 
 - [ ] **`VISIT_CITIES`**: the docs' example shows Mumbai/Pune/Delhi; it needs the client's **Odisha** city list.
 - [x] **Unique count**: the server now also returns `Unique_Person_Count` per visit and `Total_Unique_Person_Count` on the dashboard (each child once across photos). The app shows it as the main **Unique students** number, with `Total_Face_Count` (all faces, repeats included) as the small secondary number. *Please add both fields to the live docs.*
-- [x] ~~Dashboard stats endpoint~~: `Admin/dashboard.php` (v1.5.0). Still missing from it: schools covered, photos, AI-failed visits, last-7-days count, face count per city.
+- [x] ~~Dashboard stats endpoint~~: `Admin/dashboard.php` (v1.5.0). *The app no longer calls it*: the dashboard now works out its numbers from `GET visit.php` so every filter (date range, city, staff, AI) applies. A filtered stats endpoint can replace that later for speed.
 - [ ] **`search`** param on `GET visit.php` (school / staff name): today the admin list filters in the browser.
 - [ ] Optional: a `District` per city, and visit **edit/delete** for admins.
-- [ ] Excel / PPT export (server-side).
+- [x] ~~Excel / PPT export~~: Excel and CSV are made in the browser; reports are shared as links (no PDF / PPT).
 - [ ] Production: **HTTPS** + public domain for the API (needed for installing the app and for phones on mobile data).
+
+### Needed for Draft 2 (built in the app, saved in the browser until these exist)
+
+All of these live in [`src/services/api/pending.service.js`](../src/services/api/pending.service.js) with the call shape the endpoint should have. When an endpoint is ready, replace that function's body with the `api.*` call. Until then the data exists only on the device where it was entered.
+
+| Feature | Endpoint needed | Fields |
+|---|---|---|
+| **POC on a visit** | `POST Staff/visit.php` accepts and stores `poc_name`, `poc_contact`; list/get return `POC_Name`, `POC_Contact` | App already sends them |
+| **Client role** | `Role` = `Client` in `Admin/user.php` + login; read-only access to approved data | App already sends `role: "Client"` |
+| **Visit review** | `PUT Admin/visit_review.php` `{ visit_id, status: waiting/approved/rejected }`; visits return `Review_Status`, `Reviewed_AT` | Bulk approve: accept a list of `visit_id`s |
+| **Photo Show / ★ Best** | `PUT Admin/photo_flags.php` `{ photo_id, show, best }`; photos return `Show`, `Best` | Headcount photos are always shown with an approved visit |
+| **Campaign target** | `GET/PUT Admin/target.php` `{ start, end, cities: { City: visits } }` | Overall = sum of cities |
+| **Report links** | `Admin/report.php`: create / list / turn off (`title, from, to, filters, visit_ids or null, expires`); public `report.php?id=` (no login) returns the report's approved visits + photos and counts opens | `visit_ids = null` means all approved visits matching the filters |
+| **Client data** | Client logins get only approved visits, no staff names | The app filters in the browser today |

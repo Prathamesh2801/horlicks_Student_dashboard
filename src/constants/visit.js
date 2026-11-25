@@ -25,10 +25,13 @@ export const PERIODS = [
   { value: 'this', label: 'This month' },
   { value: 'last', label: 'Last month' },
   { value: 'all', label: 'All time' },
+  { value: 'custom', label: 'Date range…' },
 ]
 
-export function periodRange(period) {
+// Period → server date range. custom = from/to (YYYY-MM-DD), either may be empty.
+export function periodRange(period, from = '', to = '') {
   if (period === 'all') return {}
+  if (period === 'custom') return { ...(from && { dateFrom: from }), ...(to && { dateTo: to }) }
   const month = monthISO(period === 'last' ? -1 : 0)
   const [y, m] = month.split('-').map(Number)
   return { dateFrom: `${month}-01`, dateTo: `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}` }
@@ -37,4 +40,13 @@ export function periodRange(period) {
 export const ROLES = [
   { value: 'staff', label: 'Staff' },
   { value: 'admin', label: 'Admin' },
+  { value: 'client', label: 'Client' },
 ]
+
+// Admin review of an uploaded visit. Only approved visits reach the client and report links.
+export const REVIEW = {
+  waiting: { label: 'Waiting', tone: 'amber' },
+  approved: { label: 'Approved', tone: 'green' },
+  rejected: { label: 'Rejected', tone: 'red' },
+}
+export const REVIEW_FILTERS = Object.entries(REVIEW).map(([value, r]) => ({ value, label: r.label }))

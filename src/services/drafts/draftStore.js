@@ -1,7 +1,7 @@
 import { idb, keepDataOnDevice } from '../../utils/idb'
 
 // Visits being built on the phone, before they are uploaded. Everything works offline.
-// Draft: { id, username, staffName, date, city, schoolName, lat, lng, accuracy, createdAt, photos: [{ id, type, lat, lng, takenAt }],
+// Draft: { id, username, staffName, date, city, schoolName, pocName, pocContact, lat, lng, accuracy, createdAt, photos: [{ id, type, lat, lng, takenAt }],
 //          state: 'draft' | 'queued' (submitted, waiting for internet) | 'failed' (server refused, see error), error }
 // Photo images are stored separately (photos store) so lists stay fast.
 
@@ -19,7 +19,7 @@ const readDataUrl = (blob) =>
     reader.readAsDataURL(blob)
   })
 
-export async function createDraft({ user, date, city, schoolName, lat, lng, accuracy }) {
+export async function createDraft({ user, date, city, schoolName, pocName, pocContact, lat, lng, accuracy }) {
   keepDataOnDevice()
   const draft = {
     id: uid(),
@@ -28,6 +28,8 @@ export async function createDraft({ user, date, city, schoolName, lat, lng, accu
     date,
     city,
     schoolName,
+    pocName,
+    pocContact,
     lat,
     lng,
     accuracy,

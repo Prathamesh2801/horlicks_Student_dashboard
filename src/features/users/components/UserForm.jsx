@@ -1,9 +1,14 @@
 import { useState } from 'react'
-import { MdLock, MdPerson } from 'react-icons/md'
+import { MdLock, MdPerson, MdVisibility } from 'react-icons/md'
 import { Button, Input } from '../../../components/ui'
 import { ROLES } from '../../../constants/visit'
 
-const ROLE_ICON = { staff: MdPerson, admin: MdLock }
+const ROLE_ICON = { staff: MdPerson, admin: MdLock, client: MdVisibility }
+const ROLE_HINT = {
+  staff: 'Staff use the phone app.',
+  admin: 'Admins use this dashboard.',
+  client: 'Clients get the read-only client view: approved data only, no users or staff data.',
+}
 
 export default function UserForm({ onSubmit, onCancel }) {
   const [form, setForm] = useState({ name: '', username: '', password: '', role: 'staff' })
@@ -53,7 +58,7 @@ export default function UserForm({ onSubmit, onCancel }) {
       />
       <div>
         <p className="mb-1.5 text-sm font-semibold text-gray-800">Role</p>
-        <div role="radiogroup" aria-label="Role" className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1">
+        <div role="radiogroup" aria-label="Role" className="grid grid-cols-3 gap-1 rounded-xl bg-gray-100 p-1">
           {ROLES.map((r) => {
             const Icon = ROLE_ICON[r.value]
             const active = form.role === r.value
@@ -71,7 +76,7 @@ export default function UserForm({ onSubmit, onCancel }) {
             )
           })}
         </div>
-        <p className="mt-1 text-xs text-gray-500">Staff use the phone app. Admins use this dashboard.</p>
+        <p className="mt-1 text-xs text-gray-500">{ROLE_HINT[form.role]}</p>
       </div>
       {error && (
         <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">

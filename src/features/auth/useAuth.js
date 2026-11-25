@@ -4,4 +4,4 @@ export const AuthContext = createContext(null)
 
 export const useAuth = () => useContext(AuthContext)
 
-export const homePathFor = (role) => (role === 'admin' ? '/admin' : '/staff')
+export const homePathFor = (role) => ({ admin: '/admin', client: '/client' })[role] ?? '/staff'

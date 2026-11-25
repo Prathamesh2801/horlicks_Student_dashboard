@@ -1,4 +1,5 @@
 import { api, fileUrl } from './client'
+import { withPending } from './pending.service'
 
 // Server: Staff/visit.php (see docs/SERVER_API.md → Staff · Visits)
 // Staff only ever get their own visits; admins get everyone's.
@@ -25,6 +26,8 @@ function toVisit(v) {
     city: v.City,
     cityName: v.City,
     schoolName: v.School_Name,
+    pocName: v.POC_Name ?? null, // school point of contact (server: not stored yet, see docs/SERVER_API.md)
+    pocContact: v.POC_Contact ?? null,
     staffId: v.Username,
     staffName: v.Staff_Name,
     lat: v.Latitude == null ? null : Number(v.Latitude),
@@ -86,22 +89,24 @@ export async function listVisits({ city, dateFrom, dateTo, username } = {}) {
     params.offset += PAGE_LIMIT
     if (all.length >= data.Total || data.Data.length === 0) break
   }
-  return all.sort((a, b) => b.date.localeCompare(a.date) || b.submittedAt.localeCompare(a.submittedAt))
+  return withPending(all.sort((a, b) => b.date.localeCompare(a.date) || b.submittedAt.localeCompare(a.submittedAt)))
 }
 
 export async function getVisit(id) {
   const data = await api.get(VISITS, { params: { visit_id: id } })
-  return toVisit(data.Data)
+  return withPending(toVisit(data.Data))
 }
 
 // Uploads a whole visit at once (multipart). The server counts faces on the AI photos while it waits,
 // so this can take a minute or more. onProgress(0..1) reports the upload part.
 // Returns { visit, warnings }.
-export async function createVisit({ date, city, schoolName, lat, lng, normalPhotos, aiPhotos }, onProgress) {
+export async function createVisit({ date, city, schoolName, pocName, pocContact, lat, lng, normalPhotos, aiPhotos }, onProgress) {
   const form = new FormData()
   form.append('visit_date', date)
   form.append('city', city)
   form.append('school_name', schoolName)
+  if (pocName) form.append('poc_name', pocName)
+  if (pocContact) form.append('poc_contact', pocContact)
   form.append('latitude', String(lat))
   form.append('longitude', String(lng))
   normalPhotos.forEach((blob, i) => form.append('normal_photos[]', blob, `normal-${i + 1}.jpg`))
@@ -111,20 +116,4 @@ export async function createVisit({ date, city, schoolName, lat, lng, normalPhot
     onUploadProgress: (e) => e.total && onProgress?.(e.loaded / e.total),
   })
   return { visit: toVisit(data.Data), warnings: data.Warnings ?? [] }
-}
-
-// Admin dashboard for a month ("YYYY-MM"): one call to Admin/dashboard.php (admins only).
-export async function getStats({ month }) {
-  const data = await api.get('/Admin/dashboard.php', { params: { month } })
-  const byCity = data.Cities.map((c) => ({ city: c.City, visits: c.This_Month_Visits, allTime: c.Total_Visits }))
-  return {
-    month: data.Month,
-    visits: data.Total_Visits,
-    students: data.Total_Unique_Person_Count ?? null, // unique students
-    facesSeen: data.Total_Face_Count, // all faces, repeats included
-    allTimeVisits: byCity.reduce((s, c) => s + c.allTime, 0),
-    activeCities: byCity.filter((c) => c.visits).length,
-    byCity: byCity.sort((a, b) => b.visits - a.visits || b.allTime - a.allTime),
-    recent: data.Recent_Visits.map(toVisit),
-  }
 }

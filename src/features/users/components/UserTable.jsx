@@ -2,7 +2,7 @@ import { SortHeader } from '../../../components/table'
 import { Avatar, Badge } from '../../../components/ui'
 import { formatDate } from '../../../utils/format'
 
-const avatarTone = (u) => (u.role === 'admin' ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-800')
+const avatarTone = (u) => ({ admin: 'bg-brand-100 text-brand-700', client: 'bg-purple-100 text-purple-700' })[u.role] ?? 'bg-amber-100 text-amber-800'
 
 function Actions({ user, isMe, onToggleActive, onResetPassword }) {
   return (
@@ -23,7 +23,11 @@ function Actions({ user, isMe, onToggleActive, onResetPassword }) {
   )
 }
 
-const RoleBadge = ({ role }) => <Badge tone={role === 'admin' ? 'brand' : 'gray'}>{role === 'admin' ? 'Admin' : 'Staff'}</Badge>
+const ROLE_BADGE = { admin: ['brand', 'Admin'], client: ['purple', 'Client'], staff: ['gray', 'Staff'] }
+const RoleBadge = ({ role }) => {
+  const [tone, label] = ROLE_BADGE[role] ?? ROLE_BADGE.staff
+  return <Badge tone={tone}>{label}</Badge>
+}
 // Green dot while the user has an active session on the server.
 const SignedInDot = ({ user }) =>
   user.signedIn ? <span className="size-2 shrink-0 rounded-full bg-green-500" title="Signed in now" aria-label="Signed in now" /> : null

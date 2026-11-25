@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router'
 import { MdChevronRight } from 'react-icons/md'
 import { SortHeader } from '../../../components/table'
 import { Badge } from '../../../components/ui'
+import { REVIEW } from '../../../constants/visit'
 import { formatDate, formatNumber, formatShortDate } from '../../../utils/format'
 
 function AiCount({ visit }) {
@@ -23,6 +24,8 @@ function AiBadge({ visit }) {
   return <Badge tone="green">Counted</Badge>
 }
 
+const ReviewBadge = ({ visit }) => <Badge tone={REVIEW[visit.review]?.tone}>{REVIEW[visit.review]?.label}</Badge>
+
 // Table on tablet/desktop, compact list on phones. Render inside a Card.
 // table (optional): useTableState() result, makes the headers sortable.
 export default function VisitsTable({ visits, table }) {
@@ -40,6 +43,7 @@ export default function VisitsTable({ visits, table }) {
             {h('City', 'city')}
             {h('Staff', 'staff', 'hidden px-3 py-3 lg:table-cell')}
             {h('Photos', 'photos', 'hidden px-3 py-3 xl:table-cell', true)}
+            {h('Review', 'review')}
             {h('Students', 'count', undefined, true)}
             {h('AI', 'ai', undefined, true)}
             <th className="w-10" aria-hidden="true" />
@@ -59,6 +63,9 @@ export default function VisitsTable({ visits, table }) {
               <td className="px-3 py-3.5 text-gray-700">{v.cityName}</td>
               <td className="hidden px-3 py-3.5 text-gray-700 lg:table-cell">{v.staffName}</td>
               <td className="hidden px-3 py-3.5 text-gray-700 xl:table-cell">{v.photoCount}</td>
+              <td className="px-3 py-3.5">
+                <ReviewBadge visit={v} />
+              </td>
               <td className="px-3 py-3.5">
                 <AiCount visit={v} />
               </td>
@@ -85,7 +92,7 @@ export default function VisitsTable({ visits, table }) {
               </div>
               <div className="flex flex-col items-end gap-1 text-sm">
                 <AiCount visit={v} />
-                <AiBadge visit={v} />
+                <ReviewBadge visit={v} />
               </div>
               <MdChevronRight className="size-5 shrink-0 text-gray-400" />
             </Link>

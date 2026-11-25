@@ -13,6 +13,9 @@ export const isInAppBrowser = /FBAN|FBAV|Instagram|Line\/|Snapchat|; wv\)/i.test
 // Which browser on iOS (all can "Add to Home Screen" since iOS 16.4, from different menus).
 export const iosBrowser = !isIOS ? null : /CriOS/.test(ua) ? 'chrome' : /FxiOS/.test(ua) ? 'firefox' : /EdgiOS/.test(ua) ? 'edge' : 'safari'
 
+// Laptops and desktops (Windows, Mac, Linux, ChromeOS): only the wording of the install sheet changes.
+export const isDesktop = !isIOS && !isAndroid
+
 export const isMacSafari = !isIOS && /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua)
 
 export const isStandalone = () =>

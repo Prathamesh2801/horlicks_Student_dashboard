@@ -1,11 +1,17 @@
 import { createHashRouter, Navigate } from 'react-router'
 import { RequireRole } from '../features/auth'
-import AdminLayout from '../layouts/AdminLayout'
+import AdminLayout, { ClientLayout } from '../layouts/AdminLayout'
 import StaffLayout from '../layouts/StaffLayout'
 import LoginPage from '../pages/LoginPage'
 import NotFoundPage from '../pages/NotFoundPage'
+import SharedReportPage from '../pages/SharedReportPage'
+import ClientGalleryPage from '../pages/client/ClientGalleryPage'
+import ClientMapPage from '../pages/client/ClientMapPage'
+import ClientOverviewPage from '../pages/client/ClientOverviewPage'
 import DashboardPage from '../pages/admin/DashboardPage'
 import MapPage from '../pages/admin/MapPage'
+import ReportsPage from '../pages/admin/ReportsPage'
+import TargetPage from '../pages/admin/TargetPage'
 import UsersPage from '../pages/admin/UsersPage'
 import VisitDetailPage from '../pages/admin/VisitDetailPage'
 import VisitsPage from '../pages/admin/VisitsPage'
@@ -44,7 +50,25 @@ export const router = createHashRouter([
       { path: 'visits/:id', element: <VisitDetailPage /> },
       { path: 'map', element: <MapPage /> },
       { path: 'users', element: <UsersPage /> },
+      { path: 'target', element: <TargetPage /> },
+      { path: 'reports', element: <ReportsPage /> },
     ],
   },
+  {
+    // Read-only client view; admins can open it as a preview.
+    path: '/client',
+    element: (
+      <RequireRole role={['client', 'admin']}>
+        <ClientLayout />
+      </RequireRole>
+    ),
+    children: [
+      { index: true, element: <ClientOverviewPage /> },
+      { path: 'map', element: <ClientMapPage /> },
+      { path: 'gallery', element: <ClientGalleryPage /> },
+    ],
+  },
+  // Shared report link (no login).
+  { path: '/r/:id', element: <SharedReportPage /> },
   { path: '*', element: <NotFoundPage /> },
 ])
