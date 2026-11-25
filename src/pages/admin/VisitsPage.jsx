@@ -9,8 +9,7 @@ import { periodRange, REVIEW, REVIEW_FILTERS } from '../../constants/visit'
 import { AI_FILTERS, staffOptions, VISIT_FILTERS, VISIT_SORT, visitMatches, VisitsTable } from '../../features/monitoring'
 import { useAsync } from '../../hooks/useAsync'
 import { usePendingChanges } from '../../hooks/usePendingChanges'
-import { setReviews } from '../../services/api/pending.service'
-import { getCities, listVisits } from '../../services/api/visits.service'
+import { getCities, listVisits, reviewVisits } from '../../services/api/visits.service'
 import { formatNumber, formatTime, todayISO } from '../../utils/format'
 
 // Phones have no column headers, so sorting is a menu there.
@@ -60,12 +59,23 @@ export default function VisitsPage() {
   const counts = useMemo(() => Object.fromEntries(Object.keys(REVIEW).map((k) => [k, (data ?? []).filter((v) => v.review === k).length])), [data])
   const waitingShown = (table.filtered ?? []).filter((v) => v.review === 'waiting')
 
-  const approveShown = () => {
-    if (window.confirm(`Approve ${waitingShown.length} visits? They will appear for the client.`))
-      setReviews(
+  const [approving, setApproving] = useState(null) // { done, total } while approving in bulk
+  const [approveError, setApproveError] = useState(null)
+  const approveShown = async () => {
+    if (!window.confirm(`Approve ${waitingShown.length} visits? They will appear for the client.`)) return
+    setApproveError(null)
+    setApproving({ done: 0, total: waitingShown.length })
+    try {
+      await reviewVisits(
         waitingShown.map((v) => v.id),
         'approved',
+        (done) => setApproving((a) => ({ ...a, done })),
       )
+    } catch (err) {
+      setApproveError(err.message)
+      reload()
+    }
+    setApproving(null)
   }
 
   return (
@@ -80,8 +90,9 @@ export default function VisitsPage() {
         action={
           <div className="flex flex-wrap gap-2">
             {table.state.review === 'waiting' && waitingShown.length > 0 && (
-              <Button onClick={approveShown}>
-                <MdDoneAll className="size-5" /> Approve {formatNumber(waitingShown.length)}
+              <Button onClick={approveShown} loading={!!approving}>
+                <MdDoneAll className="size-5" />{' '}
+                {approving ? `Approving ${approving.done} of ${approving.total}…` : `Approve ${formatNumber(waitingShown.length)}`}
               </Button>
             )}
             <ExportMenu filename={`visits-${todayISO()}`} getRows={() => exportRows(table.filtered)} count={table.total} noun="visits" disabled={!table.total} />
@@ -126,6 +137,11 @@ export default function VisitsPage() {
       </TableToolbar>
 
       {error && data && <StaleBanner message={error} onRetry={reload} />}
+      {approveError && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          Some visits weren’t approved: {approveError}
+        </p>
+      )}
 
       {error && !data ? (
         <LoadError message={error} onRetry={reload} />

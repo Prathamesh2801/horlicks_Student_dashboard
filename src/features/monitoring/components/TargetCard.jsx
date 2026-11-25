@@ -4,9 +4,9 @@ import { Badge, Card } from '../../../components/ui'
 import { formatDate, formatNumber } from '../../../utils/format'
 import { STATUS } from '../target'
 
-const BAR = { green: 'bg-brand-700', amber: 'bg-amber-500', red: 'bg-accent-600' }
+const BAR = { green: 'bg-brand-700', amber: 'bg-amber-500', red: 'bg-accent-600', gray: 'bg-gray-400' }
 const pct = (p) => `${Math.round(p.pct * 100)}%`
-const perDay = (n) => `${n < 10 ? n.toFixed(1) : formatNumber(Math.round(n))} / day`
+const perDay = (n) => (n == null ? '—' : `${n < 10 ? n.toFixed(1) : formatNumber(Math.round(n))} / day`)
 
 function Bar({ p, height = 'h-2', marker }) {
   const tone = STATUS[p.status].tone
@@ -40,7 +40,7 @@ function Stat({ label, value, extra }) {
   )
 }
 
-// Campaign target vs achievement: overall + by city. data = campaignProgress(). client = no run-rate columns.
+// Target vs achievement: overall + by city, from the server (useCampaign). client = no run-rate / deadline columns.
 export default function TargetCard({ data, client, editTo }) {
   const o = data.overall
   return (
@@ -49,7 +49,8 @@ export default function TargetCard({ data, client, editTo }) {
         <div>
           <h2 className="font-bold">{client ? 'Target vs achievement by city' : 'Target vs achievement'}</h2>
           <p className="text-xs text-gray-500">
-            Campaign {formatDate(data.start)} – {formatDate(data.end)} · day {o.dayNo} of {o.totalDays}
+            Campaign {formatDate(o.start)} – {formatDate(o.end)}
+            {o.totalDays && o.dayNo > 0 && ` · day ${o.dayNo} of ${o.totalDays}`}
             {!client && ' · approved visits'}
           </p>
         </div>
@@ -86,7 +87,7 @@ export default function TargetCard({ data, client, editTo }) {
           }
         />
         {client && <Stat label="Visits per day so far" value={formatNumber(Math.round(o.runRate))} />}
-        <Stat label="Days left" value={`${o.totalDays - o.dayNo} of ${o.totalDays}`} />
+        <Stat label="Days left" value={o.totalDays ? `${o.daysLeft} of ${o.totalDays}` : o.daysLeft} />
       </div>
 
       {data.byCity.length > 0 && (
@@ -102,14 +103,15 @@ export default function TargetCard({ data, client, editTo }) {
                   <th className="px-3 py-2.5">%</th>
                   {!client && <th className="px-3 py-2.5">Run-rate</th>}
                   {!client && <th className="px-3 py-2.5">Needed</th>}
-                  <th className="px-3 py-2.5">Finish by</th>
+                  {!client && <th className="px-3 py-2.5">Deadline</th>}
+                  <th className="px-3 py-2.5">{client ? 'Projected finish' : 'Projected'}</th>
                   <th className="px-5 py-2.5">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {data.byCity.map((c) => {
                   const s = STATUS[c.status]
-                  const short = c.needed > c.runRate && c.status !== 'done'
+                  const short = c.needed != null && c.runRate != null && c.needed > c.runRate && c.status !== 'done'
                   return (
                     <tr key={c.city}>
                       <td className="px-5 py-2.5 font-semibold">{c.city}</td>
@@ -122,7 +124,8 @@ export default function TargetCard({ data, client, editTo }) {
                       <td className="px-3 py-2.5 font-bold">{pct(c)}</td>
                       {!client && <td className="px-3 py-2.5">{perDay(c.runRate)}</td>}
                       {!client && <td className={`px-3 py-2.5 ${short ? 'font-bold text-accent-600' : ''}`}>{perDay(c.needed)}</td>}
-                      <td className="px-3 py-2.5">{c.finish ? formatDate(c.finish) : '—'}</td>
+                      {!client && <td className="px-3 py-2.5">{formatDate(c.end)}</td>}
+                      <td className={`px-3 py-2.5 ${c.lateDays > 0 ? 'text-accent-600' : ''}`}>{c.finish ? formatDate(c.finish) : '—'}</td>
                       <td className="px-5 py-2.5">
                         <Badge tone={s.tone}>{s.label}</Badge>
                       </td>

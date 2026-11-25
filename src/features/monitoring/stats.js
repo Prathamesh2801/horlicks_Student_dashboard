@@ -42,13 +42,3 @@ export const clientVisitPhotos = (v) =>
     .filter((p) => p.show)
     .map((p) => ({ ...p, visit: v }))
     .sort((a, b) => b.best - a.best || (a.type === 'headcount') - (b.type === 'headcount'))
-
-// Photos the client may see from approved visits: headcount photos + normal photos set to "Show", ★ Best first.
-export function sharedPhotos(visits, type = '') {
-  const list = visits.flatMap((v) =>
-    v.photos
-      .filter((p) => p.show && (!type || (type === 'activity' ? p.type !== 'headcount' : p.type === 'headcount')))
-      .map((p) => ({ ...p, visit: v })),
-  )
-  return list.sort((a, b) => b.best - a.best || b.visit.date.localeCompare(a.visit.date))
-}

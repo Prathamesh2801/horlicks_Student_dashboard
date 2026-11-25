@@ -1,47 +1,51 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { MdCheckCircle, MdContentCopy, MdOpenInNew } from 'react-icons/md'
+import { MdDownload, MdPictureAsPdf } from 'react-icons/md'
 import PageHeader from '../../components/common/PageHeader'
 import { LoadError, NoResults, Pagination, PeriodFilter, TableSkeleton, TableToolbar, useTableState } from '../../components/table'
-import { Badge, Button, Card, Input, Select } from '../../components/ui'
+import { Badge, Button, Card, Input, Select, Spinner } from '../../components/ui'
 import { brand } from '../../config/brand'
 import { PERIODS, periodRange } from '../../constants/visit'
 import { AI_FILTERS, staffOptions, VISIT_SORT, visitMatches } from '../../features/monitoring'
 import { useAsync } from '../../hooks/useAsync'
 import { usePendingChanges } from '../../hooks/usePendingChanges'
-import { createReport, listReports, SAVED_LOCALLY, setReportActive } from '../../services/api/pending.service'
+import { createReport, downloadReport, listReports, waitForReport } from '../../services/api/reports.service'
 import { getCities, listVisits } from '../../services/api/visits.service'
-import { formatDate, formatNumber, formatShortDate } from '../../utils/format'
+import { formatDate, formatDateTime, formatNumber, formatShortDate } from '../../utils/format'
 
 const FILTERS = { city: '', period: 'this', from: '', to: '', staff: '', ai: '', mode: 'all' }
-const EXPIRES = [
-  { value: '', label: 'Never' },
-  { value: '7', label: 'In 7 days' },
-  { value: '30', label: 'In 30 days' },
-  { value: '90', label: 'In 90 days' },
-]
-const reportUrl = (id) => `${window.location.origin}${window.location.pathname}#/r/${id}`
-const addDays = (n) => new Date(Date.now() + n * 86400000).toLocaleDateString('en-CA')
 const rangeLabel = ({ period }, range) =>
   period === 'custom' || period === 'this' || period === 'last'
     ? `${range.dateFrom ? formatDate(range.dateFrom) : 'Start'} – ${range.dateTo ? formatDate(range.dateTo) : 'today'}`
     : PERIODS.find((p) => p.value === period)?.label
+const REPORT_STATUS = { processing: ['amber', 'Preparing'], ready: ['green', 'Ready'], failed: ['red', 'Failed'] }
 
-function CopyButton({ text, label = 'Copy link', primary }) {
-  const [copied, setCopied] = useState(false)
-  const copy = () =>
-    navigator.clipboard?.writeText(text).then(
-      () => setCopied(true),
-      () => {},
-    )
-  return primary ? (
-    <Button onClick={copy}>
-      {copied ? <MdCheckCircle className="size-5" /> : <MdContentCopy className="size-5" />} {copied ? 'Copied' : label}
-    </Button>
-  ) : (
-    <button type="button" onClick={copy} className="font-semibold text-brand-700 hover:underline">
-      {copied ? 'Copied ✓' : label}
-    </button>
+function DownloadButton({ report, primary }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const go = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      await downloadReport(report)
+    } catch (err) {
+      setError(err.message)
+    }
+    setBusy(false)
+  }
+  return (
+    <span className="inline-flex flex-col">
+      {primary ? (
+        <Button onClick={go} loading={busy}>
+          <MdDownload className="size-5" /> Download PDF
+        </Button>
+      ) : (
+        <button type="button" onClick={go} disabled={busy} className="font-semibold text-brand-700 hover:underline disabled:opacity-50">
+          {busy ? 'Downloading…' : 'Download'}
+        </button>
+      )}
+      {error && <span className="mt-1 text-xs text-accent-600">{error}</span>}
+    </span>
   )
 }
 
@@ -54,7 +58,7 @@ function useApprovedVisits(city, period, from, to) {
   return useAsync(load)
 }
 
-// Admin: choose visits → generate a link the client opens in any browser (no PDF / PPT).
+// Admin: choose visits → the server builds a PDF → download it and share the file.
 export default function ReportsPage() {
   const [params] = useSearchParams()
   const get = (k) => params.get(k) ?? FILTERS[k]
@@ -90,32 +94,45 @@ export default function ReportsPage() {
   const pageAllTicked = pageIds.length > 0 && pageIds.every((id) => ticked.has(id))
 
   const [title, setTitle] = useState('')
-  const [expires, setExpires] = useState('')
-  const [created, setCreated] = useState(null)
+  const [job, setJob] = useState(null) // { report, error, seconds } for the PDF being made
   const reports = useAsync(listReports)
-  usePendingChanges(reports.reload)
+  // No report endpoint on the server yet (404) → explain instead of failing.
+  const notOnServer = reports.error && /404|not found/i.test(reports.error)
 
   const label = rangeLabel(table.state, range)
+  const busy = Boolean(job && !job.error && job.report?.status !== 'ready')
   const generate = async () => {
-    const r = await createReport({
-      title: title.trim() || `${brand.fullName} — ${label}`,
-      period: label,
-      from: range.dateFrom ?? null,
-      to: range.dateTo ?? null,
-      filters: { city: table.state.city, staff: table.state.staff, ai: table.state.ai },
-      visitIds: all ? null : chosen.map((v) => v.id),
-      count: chosen.length,
-      expires: expires ? addDays(Number(expires)) : null,
-    })
-    setCreated(r)
+    const started = Date.now()
+    const tick = (report) => setJob({ report, seconds: Math.round((Date.now() - started) / 1000) })
+    setJob({ report: null, seconds: 0 })
+    try {
+      const username = data.find((v) => v.staffName === table.state.staff)?.staffId
+      let report = await createReport({
+        title: title.trim() || `${brand.fullName} — ${label}`,
+        // All approved visits matching the filters (the server finds them), or only the ticked ones.
+        filters: all
+          ? {
+              date_from: range.dateFrom ?? null,
+              date_to: range.dateTo ?? null,
+              city: table.state.city || null,
+              username: username ?? null,
+              ai: table.state.ai || null,
+            }
+          : undefined,
+        visitIds: all ? undefined : chosen.map((v) => v.id),
+      })
+      tick(report)
+      if (report.status === 'processing') report = await waitForReport(report.id, tick)
+      setJob({ report, error: report.status === 'failed' ? report.error || 'The server couldn’t make the PDF.' : null })
+    } catch (err) {
+      setJob({ report: null, error: err.message })
+    }
+    reports.reload()
   }
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Reports"
-        subtitle="Pick the visits, generate a link and send it to the client. Anyone with the link can open it, no login needed."
-      />
+      <PageHeader title="Reports" subtitle="Pick the visits and download a PDF report to share with the client (WhatsApp, email…)." />
 
       <Card className="overflow-hidden">
         <div className="space-y-3 p-5 pb-3">
@@ -243,100 +260,86 @@ export default function ReportsPage() {
       </Card>
 
       <Card className="space-y-4 p-5">
-        <h2 className="font-bold">2 · Generate link</h2>
-        <div className="grid gap-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
-          <Input
-            label="Report title"
-            placeholder={`${brand.fullName} — ${label}`}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={120}
-          />
-          <Select label="Link expires" value={expires} onChange={(e) => setExpires(e.target.value)} options={EXPIRES} />
-          <Button onClick={generate} disabled={!chosen.length} className="sm:mb-px">
-            Generate link
-          </Button>
-        </div>
-        {created && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-green-50 p-3 ring-1 ring-green-100">
-            <div className="text-sm">
-              <p className="font-bold text-green-700">✓ Link ready</p>
-              <p className="text-xs text-gray-600">{formatNumber(created.count)} visits</p>
-            </div>
-            <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-brand-700 ring-1 ring-gray-200">
-              {reportUrl(created.id)}
-            </code>
-            <CopyButton text={reportUrl(created.id)} primary />
-            <a
-              href={reportUrl(created.id)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-brand-700 ring-1 ring-gray-300 hover:bg-brand-50"
-            >
-              <MdOpenInNew className="size-4" /> Open
-            </a>
+        <h2 className="font-bold">2 · Generate PDF</h2>
+        {notOnServer ? (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-100">
+            PDF reports aren’t available on the server yet. This step works as soon as the server adds <code>Admin/report.php</code>.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <Input
+              label="Report title"
+              placeholder={`${brand.fullName} — ${label}`}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={120}
+            />
+            <Button onClick={generate} disabled={!chosen.length || busy} className="sm:mb-px">
+              <MdPictureAsPdf className="size-5" /> Generate PDF · {formatNumber(chosen.length)} visits
+            </Button>
           </div>
         )}
-        <p className="text-xs text-gray-400">{SAVED_LOCALLY} Until then the link opens on this device only.</p>
+        {busy && (
+          <p className="flex items-center gap-2 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-100">
+            <Spinner className="size-4" /> Preparing your PDF… {job.seconds ? `${job.seconds} s` : ''} Please stay on this page.
+          </p>
+        )}
+        {job?.report?.status === 'ready' && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-green-50 p-3 ring-1 ring-green-100">
+            <div className="flex-1 text-sm">
+              <p className="font-bold text-green-700">✓ PDF ready</p>
+              <p className="text-xs text-gray-600">
+                {job.report.title}
+                {job.report.visits != null && ` · ${formatNumber(job.report.visits)} visits`}
+                {job.report.photos != null && ` · ${formatNumber(job.report.photos)} photos`}
+              </p>
+            </div>
+            <DownloadButton report={job.report} primary />
+          </div>
+        )}
+        {job?.error && (
+          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {job.error}
+          </p>
+        )}
       </Card>
 
       <Card className="overflow-hidden">
-        <h2 className="px-5 pt-5 font-bold">Shared reports</h2>
-        {!reports.data?.length ? (
-          <p className="px-5 pb-6 pt-2 text-sm text-gray-500">No report links yet.</p>
+        <h2 className="px-5 pt-5 font-bold">Generated reports</h2>
+        {notOnServer ? (
+          <p className="px-5 pb-6 pt-2 text-sm text-gray-500">Waiting for the server’s report endpoint.</p>
+        ) : reports.error && !reports.data ? (
+          <LoadError message={reports.error} onRetry={reports.reload} />
+        ) : !reports.data?.length ? (
+          <p className="px-5 pb-6 pt-2 text-sm text-gray-500">No reports yet.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[44rem] text-left text-sm">
               <thead className="bg-page text-xs font-semibold uppercase tracking-wide text-gray-500">
                 <tr>
                   <th className="px-5 py-3">Title</th>
-                  <th className="px-3 py-3">Period</th>
                   <th className="px-3 py-3">Visits</th>
+                  <th className="px-3 py-3">Photos</th>
                   <th className="px-3 py-3">Created</th>
-                  <th className="px-3 py-3">Opened</th>
-                  <th className="px-5 py-3">Link</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-5 py-3">PDF</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {reports.data.map((r) => (
                   <tr key={r.id}>
-                    <td className="px-5 py-3 font-semibold">{r.title}</td>
-                    <td className="px-3 py-3">{r.period}</td>
-                    <td className="px-3 py-3">{formatNumber(r.count)}</td>
-                    <td className="px-3 py-3">{formatShortDate(r.createdAt)}</td>
-                    <td className="px-3 py-3 text-gray-500">{r.opens ? `${r.opens} times` : '—'}</td>
+                    <td className="px-5 py-3 font-semibold">
+                      {r.title}
+                      {r.period && <span className="block text-xs font-normal text-gray-500">{r.period}</span>}
+                    </td>
+                    <td className="px-3 py-3">{formatNumber(r.visits)}</td>
+                    <td className="px-3 py-3">{formatNumber(r.photos)}</td>
+                    <td className="px-3 py-3">{formatDateTime(r.createdAt)}</td>
+                    <td className="px-3 py-3">
+                      <Badge tone={REPORT_STATUS[r.status][0]}>{REPORT_STATUS[r.status][1]}</Badge>
+                    </td>
                     <td className="px-5 py-3">
-                      {r.active ? (
-                        <div className="flex gap-4">
-                          <CopyButton text={reportUrl(r.id)} />
-                          <a
-                            href={reportUrl(r.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-semibold text-brand-700 hover:underline"
-                          >
-                            Open
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => setReportActive(r.id, false)}
-                            className="font-semibold text-accent-600 hover:underline"
-                          >
-                            Turn off
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <Badge>Link turned off</Badge>
-                          <button
-                            type="button"
-                            onClick={() => setReportActive(r.id, true)}
-                            className="font-semibold text-brand-700 hover:underline"
-                          >
-                            Turn on
-                          </button>
-                        </div>
-                      )}
+                      {r.status === 'ready' && r.url ? <DownloadButton report={r} /> : <span className="text-gray-400">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -344,9 +347,7 @@ export default function ReportsPage() {
             </table>
           </div>
         )}
-        <p className="px-5 py-3 text-xs text-gray-500">
-          Turning a link off stops it working for everyone. Reports only ever show approved visits.
-        </p>
+        <p className="px-5 py-3 text-xs text-gray-500">Reports only include approved visits. Share the downloaded PDF file.</p>
       </Card>
     </div>
   )

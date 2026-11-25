@@ -4,7 +4,6 @@ import AdminLayout, { ClientLayout } from '../layouts/AdminLayout'
 import StaffLayout from '../layouts/StaffLayout'
 import LoginPage from '../pages/LoginPage'
 import NotFoundPage from '../pages/NotFoundPage'
-import SharedReportPage from '../pages/SharedReportPage'
 import ClientMapPage from '../pages/client/ClientMapPage'
 import ClientOverviewPage from '../pages/client/ClientOverviewPage'
 import ClientVisitDetailPage from '../pages/client/ClientVisitDetailPage'
@@ -70,7 +69,5 @@ export const router = createHashRouter([
       { path: 'map', element: <ClientMapPage /> },
     ],
   },
-  // Shared report link (no login).
-  { path: '/r/:id', element: <SharedReportPage /> },
   { path: '*', element: <NotFoundPage /> },
 ])

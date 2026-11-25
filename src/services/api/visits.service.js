@@ -1,10 +1,15 @@
 import { api, fileUrl } from './client'
-import { withPending } from './pending.service'
+import { notifyChange, withPending } from './pending.service'
 
 // Server: Staff/visit.php (see docs/SERVER_API.md → Staff · Visits)
-// Staff only ever get their own visits; admins get everyone's.
+// Staff only ever get their own visits; admins get everyone's; clients get only Approved visits (no POC,
+// only the normal photos an admin approved).
 const VISITS = '/Staff/visit.php'
 const PAGE_LIMIT = 100 // server max per page
+
+// Visit review: server Status ↔ app review
+const REVIEW_FROM = { Pending: 'waiting', Approved: 'approved', Rejected: 'rejected' }
+const REVIEW_TO = { waiting: 'Pending', approved: 'Approved', rejected: 'Rejected' }
 
 // "2026-11-17 11:45:10" (server time, IST) → "2026-11-17T11:45:10"
 const toDate = (s) => (s ? s.replace(' ', 'T') : null)
@@ -13,11 +18,18 @@ const toDate = (s) => (s ? s.replace(' ', 'T') : null)
 function toVisit(v) {
   // S3 photos: the server's temporary signed link (Url). Local photos: Path via our proxy (Url is plain http).
   const photoUrl = (p) => (p.Storage === 's3' ? p.Url : fileUrl(p.Path))
-  const normal = (v.Normal_Photos ?? []).map((p) => ({ id: `n${p.Photo_ID}`, type: 'normal', url: photoUrl(p) }))
+  // show = the client may see it (normal photos: Is_Approved by an admin; AI photos: always)
+  const normal = (v.Normal_Photos ?? []).map((p) => ({
+    id: `n${p.Photo_ID}`,
+    type: 'normal',
+    url: photoUrl(p),
+    show: Boolean(p.Is_Approved),
+  }))
   const ai = (v.AI_Photos ?? []).map((p) => ({
     id: `a${p.Photo_ID}`,
     type: 'headcount',
     url: photoUrl(p),
+    show: true,
     ai: p.AI_Status === 'Done' ? { status: 'done', count: p.Face_Count } : { status: 'failed' },
   }))
   return {
@@ -26,7 +38,7 @@ function toVisit(v) {
     city: v.City,
     cityName: v.City,
     schoolName: v.School_Name,
-    pocName: v.POC_Name ?? null, // school point of contact (server: not stored yet, see docs/SERVER_API.md)
+    pocName: v.POC_Name ?? null, // school point of contact (never sent to clients)
     pocContact: v.POC_Contact ?? null,
     staffId: v.Username,
     staffName: v.Staff_Name,
@@ -40,6 +52,7 @@ function toVisit(v) {
     facesSeen: v.Total_Face_Count ?? null, // faces in all AI photos added up, repeats included
     aiFailed: ai.filter((p) => p.ai.status === 'failed').length,
     status: 'completed',
+    review: REVIEW_FROM[v.Status] ?? 'waiting', // admin review: waiting | approved | rejected
   }
 }
 
@@ -116,4 +129,29 @@ export async function createVisit({ date, city, schoolName, pocName, pocContact,
     onUploadProgress: (e) => e.total && onProgress?.(e.loaded / e.total),
   })
   return { visit: toVisit(data.Data), warnings: data.Warnings ?? [] }
+}
+
+// ---- admin review (PUT Staff/visit.php, admins only) ----
+
+const photoNumber = (id) => Number(id.slice(1)) // 'n31' → 31
+
+// status: 'waiting' | 'approved' | 'rejected'
+export async function reviewVisit(visitId, status) {
+  await api.put(VISITS, { visit_id: Number(visitId), status: REVIEW_TO[status] })
+  notifyChange()
+}
+
+// ponytail: one request per visit; ask the server for a bulk update if admins approve hundreds at once.
+export async function reviewVisits(visitIds, status, onProgress) {
+  for (const [i, id] of visitIds.entries()) {
+    await api.put(VISITS, { visit_id: Number(id), status: REVIEW_TO[status] })
+    onProgress?.(i + 1)
+  }
+  notifyChange()
+}
+
+// The complete list of this visit's normal photos the client may see (others are hidden).
+export async function setClientPhotos(visitId, photoIds) {
+  await api.put(VISITS, { visit_id: Number(visitId), approved_normal_photo_ids: photoIds.map(photoNumber) })
+  notifyChange()
 }

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { MdAdd, MdDelete, MdGroups, MdImage, MdStar, MdStarBorder } from 'react-icons/md'
 import { Modal, Spinner } from '../../../components/ui'
-import { setPhotoFlags } from '../../../services/api/pending.service'
 
 // Placeholder tints for photos without a link, as in the design.
 const TINTS = ['bg-amber-100 text-amber-300', 'bg-blue-100 text-blue-300', 'bg-green-100 text-green-300']
@@ -29,7 +28,7 @@ function AiPill({ photo, editable }) {
 }
 
 // Admin controls under a normal photo: "Show" to the client, ★ Best (first on the client visit page and in reports).
-function Flags({ photo }) {
+function Flags({ photo, onFlag }) {
   return (
     <div className="flex items-center justify-between px-2.5 py-2">
       <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold">
@@ -37,7 +36,7 @@ function Flags({ photo }) {
           type="checkbox"
           role="switch"
           checked={photo.show}
-          onChange={(e) => setPhotoFlags(photo.id, e.target.checked ? { show: true } : { show: false, best: false })}
+          onChange={(e) => onFlag(photo, { show: e.target.checked })}
           className="peer sr-only"
         />
         <span className="relative h-4 w-7 rounded-full bg-gray-300 transition after:absolute after:left-0.5 after:top-0.5 after:size-3 after:rounded-full after:bg-white after:transition peer-checked:bg-green-600 peer-checked:after:translate-x-3 peer-focus-visible:outline-2 peer-focus-visible:outline-brand-500" />
@@ -45,7 +44,7 @@ function Flags({ photo }) {
       </label>
       <button
         type="button"
-        onClick={() => setPhotoFlags(photo.id, photo.best ? { best: false } : { best: true, show: true })}
+        onClick={() => onFlag(photo, { best: !photo.best })}
         className={`rounded p-0.5 ${photo.best ? 'text-amber-500' : 'text-gray-400 hover:text-amber-500'}`}
         aria-pressed={photo.best}
         aria-label="Best photo"
@@ -58,8 +57,8 @@ function Flags({ photo }) {
 }
 
 // editable = staff before submit (delete + add tiles). pending = photos still uploading.
-// flags = admin: Show / ★ Best controls under each photo.
-export default function PhotoGrid({ photos, editable, onDelete, onAdd, pending = 0, label, flags, className = 'grid-cols-2 sm:grid-cols-3' }) {
+// onFlag(photo, { show } | { best }) = admin: Show / ★ Best controls under each photo.
+export default function PhotoGrid({ photos, editable, onDelete, onAdd, pending = 0, label, onFlag, className = 'grid-cols-2 sm:grid-cols-3' }) {
   const [viewing, setViewing] = useState(null)
 
   return (
@@ -73,7 +72,7 @@ export default function PhotoGrid({ photos, editable, onDelete, onAdd, pending =
             animate={{ opacity: 1, scale: 1 }}
             className="overflow-hidden rounded-xl bg-white ring-1 ring-gray-200"
           >
-            <div className={`relative aspect-[4/3] ${flags && !p.show ? 'opacity-45' : ''} ${p.url ? 'bg-gray-100' : p.type === 'headcount' ? HEAD_TINT : TINTS[i % TINTS.length]}`}>
+            <div className={`relative aspect-[4/3] ${onFlag && !p.show ? 'opacity-45' : ''} ${p.url ? 'bg-gray-100' : p.type === 'headcount' ? HEAD_TINT : TINTS[i % TINTS.length]}`}>
               {p.url ? (
                 <button type="button" onClick={() => setViewing(p)} className="size-full" aria-label="View photo">
                   <img src={p.url} alt="" loading="lazy" className="size-full object-cover" />
@@ -94,13 +93,13 @@ export default function PhotoGrid({ photos, editable, onDelete, onAdd, pending =
                 </button>
               )}
               <AiPill photo={p} editable={editable} />
-              {flags && p.best && (
+              {onFlag && p.best && (
                 <span className="absolute left-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
                   <MdStar className="size-3.5" /> Best
                 </span>
               )}
             </div>
-            {flags ? <Flags photo={p} /> : label && <p className="px-3 py-2 text-xs font-semibold text-gray-800">{label}</p>}
+            {onFlag ? <Flags photo={p} onFlag={onFlag} /> : label && <p className="px-3 py-2 text-xs font-semibold text-gray-800">{label}</p>}
           </motion.div>
         ))}
 

@@ -1,18 +1,13 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { useAsync } from '../../hooks/useAsync'
 import { usePendingChanges } from '../../hooks/usePendingChanges'
-import { getTarget } from '../../services/api/pending.service'
-import { listVisits } from '../../services/api/visits.service'
-import { campaignProgress } from './target'
+import { getTargets } from '../../services/api/targets.service'
 
-// The campaign target and the visits inside its dates → progress (null when no target is set).
+// City targets with progress from the server → { progress: { overall, byCity, asOf } | null }.
+// progress is null when no city has a target, or the user may not read targets (server: Admins only).
 export function useCampaign() {
-  const load = useCallback(async () => {
-    const target = await getTarget()
-    return { target, visits: target ? await listVisits({ dateFrom: target.start, dateTo: target.end }) : [] }
-  }, [])
+  const load = useCallback(() => getTargets().catch((err) => (err.status === 403 ? null : Promise.reject(err))), [])
   const res = useAsync(load)
   usePendingChanges(res.reload)
-  const progress = useMemo(() => (res.data?.target ? campaignProgress(res.data.target, res.data.visits) : null), [res.data])
-  return { ...res, target: res.data?.target ?? null, progress }
+  return { ...res, progress: res.data?.overall ? res.data : null }
 }

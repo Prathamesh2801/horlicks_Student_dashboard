@@ -6,6 +6,9 @@ import { formatCoords, formatDate, formatDateTime, mapUrl } from '../../../utils
 import HeadcountSummary from './HeadcountSummary'
 import PhotoGrid from './PhotoGrid'
 import ReviewCard from './ReviewCard'
+import { useState } from 'react'
+import { SAVED_LOCALLY, setPhotoBest } from '../../../services/api/pending.service'
+import { setClientPhotos } from '../../../services/api/visits.service'
 
 function Row({ label, children }) {
   return (
@@ -57,6 +60,21 @@ function LocationCard({ visit }) {
 export default function VisitDetail({ visit, admin }) {
   const head = visit.photos.filter((p) => p.type === 'headcount')
   const normal = visit.photos.filter((p) => p.type !== 'headcount')
+  const [flagError, setFlagError] = useState(null)
+
+  // Admin: Show = the client may see the photo (server); ★ Best = shown first (this device for now).
+  // Best needs Show; hiding a photo also clears its Best.
+  const flag = async (photo, change) => {
+    setFlagError(null)
+    try {
+      const show = 'show' in change ? change.show : change.best || photo.show
+      if (show !== photo.show) await setClientPhotos(visit.id, normal.filter((p) => (p.id === photo.id ? show : p.show)).map((p) => p.id))
+      const best = 'best' in change ? change.best : show && photo.best
+      if (best !== photo.best) await setPhotoBest(photo.id, best)
+    } catch (err) {
+      setFlagError(err.message)
+    }
+  }
 
   const details = (
     <Card className="p-5">
@@ -112,12 +130,20 @@ export default function VisitDetail({ visit, admin }) {
           </span>
         )}
       </h2>
+      {flagError && (
+        <p role="alert" className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {flagError}
+        </p>
+      )}
       {normal.length ? (
-        <PhotoGrid
-          photos={normal}
-          flags={admin}
-          className={admin ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-6' : 'grid-cols-4'}
-        />
+        <>
+          <PhotoGrid
+            photos={normal}
+            onFlag={admin ? flag : undefined}
+            className={admin ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-6' : 'grid-cols-4'}
+          />
+          {admin && <p className="mt-2 text-xs text-gray-400">“Show” is saved on the server. {SAVED_LOCALLY}</p>}
+        </>
       ) : (
         <p className="text-sm text-gray-500">No normal photos.</p>
       )}
