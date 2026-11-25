@@ -18,6 +18,7 @@ import {
   MdWifiOff,
 } from 'react-icons/md'
 import { Button, Modal } from '../../components/ui'
+import { brand } from '../../config/brand'
 import { installActions, recentlyDismissed, useInstall } from './installStore'
 import { iosBrowser, isDesktop, isIOS, isIPad } from './platform'
 
@@ -42,7 +43,7 @@ function AppCard() {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-page p-3">
       <motion.img
-        src="./pwa-192x192.png"
+        src={`./${brand.icons}pwa-192x192.png`}
         alt=""
         className="size-14 rounded-2xl shadow-md"
         initial={{ scale: 0.8, rotate: -6 }}
@@ -51,7 +52,7 @@ function AppCard() {
       />
       <div className="min-w-0">
         <p className="font-bold">My Workbench</p>
-        <p className="text-xs text-gray-500">Horlicks School Activity</p>
+        <p className="text-xs text-gray-500">{brand.fullName}</p>
         <p className="text-xs font-semibold text-green-700">Free · less than 1 MB</p>
       </div>
     </div>

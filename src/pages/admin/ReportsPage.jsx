@@ -4,6 +4,7 @@ import { MdCheckCircle, MdContentCopy, MdOpenInNew } from 'react-icons/md'
 import PageHeader from '../../components/common/PageHeader'
 import { LoadError, NoResults, Pagination, PeriodFilter, TableSkeleton, TableToolbar, useTableState } from '../../components/table'
 import { Badge, Button, Card, Input, Select } from '../../components/ui'
+import { brand } from '../../config/brand'
 import { PERIODS, periodRange } from '../../constants/visit'
 import { AI_FILTERS, staffOptions, VISIT_SORT, visitMatches } from '../../features/monitoring'
 import { useAsync } from '../../hooks/useAsync'
@@ -97,7 +98,7 @@ export default function ReportsPage() {
   const label = rangeLabel(table.state, range)
   const generate = async () => {
     const r = await createReport({
-      title: title.trim() || `Horlicks School Activity — ${label}`,
+      title: title.trim() || `${brand.fullName} — ${label}`,
       period: label,
       from: range.dateFrom ?? null,
       to: range.dateTo ?? null,
@@ -246,7 +247,7 @@ export default function ReportsPage() {
         <div className="grid gap-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
           <Input
             label="Report title"
-            placeholder={`Horlicks School Activity — ${label}`}
+            placeholder={`${brand.fullName} — ${label}`}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={120}

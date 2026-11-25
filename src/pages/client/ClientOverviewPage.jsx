@@ -3,6 +3,7 @@ import { MdCloudOff } from 'react-icons/md'
 import PageHeader from '../../components/common/PageHeader'
 import { EmptyState, Spinner } from '../../components/ui'
 import { Averages, CityChart, KpiTiles, TargetCard, TrendChart, useCampaign, visitStats } from '../../features/monitoring'
+import { brand } from '../../config/brand'
 import { formatDateTime } from '../../utils/format'
 import ClientFilters from './ClientFilters'
 import { useClientVisits } from './useClientVisits'
@@ -17,7 +18,7 @@ export default function ClientOverviewPage() {
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Overview"
-        subtitle={`Horlicks School Activity · approved visits only${loadedAt ? ` · last updated ${formatDateTime(loadedAt)}` : ''}`}
+        subtitle={`${brand.fullName} · approved visits only${loadedAt ? ` · last updated ${formatDateTime(loadedAt)}` : ''}`}
       />
       <ClientFilters table={table} cities={cities} onRefresh={reload} refreshing={refreshing} />
       {error && !data ? (
