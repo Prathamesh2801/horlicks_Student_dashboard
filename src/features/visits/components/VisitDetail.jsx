@@ -7,8 +7,8 @@ import HeadcountSummary from './HeadcountSummary'
 import PhotoGrid from './PhotoGrid'
 import ReviewCard from './ReviewCard'
 import { useState } from 'react'
-import { SAVED_LOCALLY, setPhotoBest } from '../../../services/api/pending.service'
-import { setClientPhotos } from '../../../services/api/visits.service'
+import { Button } from '../../../components/ui'
+import { retryAiCount, setClientPhotos } from '../../../services/api/visits.service'
 
 function Row({ label, children }) {
   return (
@@ -43,13 +43,22 @@ function LocationCard({ visit }) {
         className="z-0 h-44 rounded-xl"
       >
         <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <CircleMarker center={[visit.lat, visit.lng]} radius={9} pathOptions={{ color: '#fff', weight: 3, fillColor: '#d7262e', fillOpacity: 1 }} />
+        <CircleMarker
+          center={[visit.lat, visit.lng]}
+          radius={9}
+          pathOptions={{ color: '#fff', weight: 3, fillColor: '#d7262e', fillOpacity: 1 }}
+        />
       </MapContainer>
       <p className="mt-3 flex items-center gap-1 text-sm font-semibold">
         <MdLocationOn className="size-4 text-gray-500" /> {formatCoords(visit.lat, visit.lng)}
         {visit.accuracy != null && <span className="font-normal text-gray-500">· ±{visit.accuracy} m</span>}
       </p>
-      <a href={mapUrl(visit.lat, visit.lng)} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand-700 hover:underline">
+      <a
+        href={mapUrl(visit.lat, visit.lng)}
+        target="_blank"
+        rel="noreferrer"
+        className="text-sm font-semibold text-brand-700 hover:underline"
+      >
         Open in map →
       </a>
     </Card>
@@ -62,18 +71,24 @@ export default function VisitDetail({ visit, admin }) {
   const normal = visit.photos.filter((p) => p.type !== 'headcount')
   const [flagError, setFlagError] = useState(null)
 
-  // Admin: Show = the client may see the photo (server); ★ Best = shown first (this device for now).
-  // Best needs Show; hiding a photo also clears its Best.
+  // Admin: Show = the client may see the photo; ★ Best = shown first. Best needs Show; hiding clears Best.
   const flag = async (photo, change) => {
     setFlagError(null)
+    const show = 'show' in change ? change.show : change.best || photo.show
+    const best = 'best' in change ? change.best : show && photo.best
+    const ids = (key, own) => normal.filter((p) => (p.id === photo.id ? own : p[key])).map((p) => p.id)
     try {
-      const show = 'show' in change ? change.show : change.best || photo.show
-      if (show !== photo.show) await setClientPhotos(visit.id, normal.filter((p) => (p.id === photo.id ? show : p.show)).map((p) => p.id))
-      const best = 'best' in change ? change.best : show && photo.best
-      if (best !== photo.best) await setPhotoBest(photo.id, best)
+      await setClientPhotos(visit.id, ids('show', show), ids('best', best))
     } catch (err) {
       setFlagError(err.message)
     }
+  }
+  const [retrying, setRetrying] = useState(false)
+  const retry = async () => {
+    setRetrying(true)
+    setFlagError(null)
+    await retryAiCount(visit.id).catch((err) => setFlagError(err.message))
+    setRetrying(false)
   }
 
   const details = (
@@ -81,9 +96,7 @@ export default function VisitDetail({ visit, admin }) {
       {admin && <h2 className="mb-1 font-bold">Visit details</h2>}
       <dl className="divide-y divide-gray-100">
         {admin && <Row label="School">{visit.schoolName}</Row>}
-        <Row label="City">
-          {visit.cityName}
-        </Row>
+        <Row label="City">{visit.cityName}</Row>
         <Row label="Visit date">{formatDate(visit.date)}</Row>
         {visit.pocName && (
           <Row label="POC">
@@ -116,6 +129,14 @@ export default function VisitDetail({ visit, admin }) {
         Headcount photos · AI count ({head.length})
         {admin && <span className="ml-1 text-sm font-normal text-gray-500">· shown to the client once the visit is approved</span>}
       </h2>
+      {admin && visit.aiFailed > 0 && !visit.aiCounting && (
+        <div className="mb-2 flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 ring-1 ring-amber-100">
+          <span className="flex-1">AI could not count these photos{visit.aiError ? `: ${visit.aiError}` : '.'}</span>
+          <Button variant="secondary" onClick={retry} loading={retrying}>
+            Count again
+          </Button>
+        </div>
+      )}
       {head.length ? <PhotoGrid photos={head} className="grid-cols-3" /> : <p className="text-sm text-gray-500">No headcount photos.</p>}
     </section>
   )
@@ -136,14 +157,11 @@ export default function VisitDetail({ visit, admin }) {
         </p>
       )}
       {normal.length ? (
-        <>
-          <PhotoGrid
-            photos={normal}
-            onFlag={admin ? flag : undefined}
-            className={admin ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-6' : 'grid-cols-4'}
-          />
-          {admin && <p className="mt-2 text-xs text-gray-400">“Show” is saved on the server. {SAVED_LOCALLY}</p>}
-        </>
+        <PhotoGrid
+          photos={normal}
+          onFlag={admin ? flag : undefined}
+          className={admin ? 'grid-cols-3 sm:grid-cols-4 xl:grid-cols-6' : 'grid-cols-4'}
+        />
       ) : (
         <p className="text-sm text-gray-500">No normal photos.</p>
       )}

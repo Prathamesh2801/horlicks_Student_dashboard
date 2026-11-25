@@ -19,5 +19,12 @@ export function useVisit(id) {
     return () => pendingEvents.removeEventListener('change', reload)
   }, [reload])
 
+  // The server counts AI photos in the background: check again until the numbers arrive.
+  useEffect(() => {
+    if (!visit?.aiCounting) return
+    const t = setTimeout(reload, 15000)
+    return () => clearTimeout(t)
+  }, [visit, reload])
+
   return { visit, error, reload }
 }

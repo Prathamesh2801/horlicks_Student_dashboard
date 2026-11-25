@@ -4,9 +4,10 @@ export const VISIT_FILTERS = { city: '', period: 'this', from: '', to: '', staff
 export const AI_FILTERS = [
   { value: 'counted', label: 'AI counted' },
   { value: 'failed', label: 'AI count failed' },
+  { value: 'counting', label: 'AI counting' },
   { value: 'none', label: 'No AI photos' },
 ]
-const aiState = (v) => (v.aiFailed ? 'failed' : v.photos.some((p) => p.type === 'headcount') ? 'counted' : 'none')
+const aiState = (v) => (v.aiCounting ? 'counting' : v.aiFailed ? 'failed' : v.photos.some((p) => p.type === 'headcount') ? 'counted' : 'none')
 
 // Filters applied in the browser (city + period go to the server).
 export const visitMatches = (v, s) =>

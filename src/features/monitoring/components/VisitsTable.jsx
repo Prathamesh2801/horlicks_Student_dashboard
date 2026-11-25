@@ -6,6 +6,7 @@ import { REVIEW } from '../../../constants/visit'
 import { formatDate, formatNumber, formatShortDate } from '../../../utils/format'
 
 function AiCount({ visit }) {
+  if (visit.aiCounting) return <span className="text-gray-400">Counting…</span>
   if (visit.headcount == null && visit.aiFailed) return <span className="font-semibold text-amber-600">—</span>
   return (
     <span className="font-bold">
@@ -20,6 +21,7 @@ function AiCount({ visit }) {
 function AiBadge({ visit }) {
   const ai = visit.photos.filter((p) => p.type === 'headcount').length
   if (!ai) return <Badge>No AI photos</Badge>
+  if (visit.aiCounting) return <Badge tone="brand">Counting</Badge>
   if (visit.aiFailed) return <Badge tone="amber">{visit.aiFailed} failed</Badge>
   return <Badge tone="green">Counted</Badge>
 }

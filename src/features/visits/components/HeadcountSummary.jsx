@@ -19,9 +19,11 @@ export default function HeadcountSummary({ visit }) {
           <p className="text-sm text-white/85">Unique students (AI)</p>
           <p className="text-4xl font-bold leading-tight">{formatNumber(visit.headcount)}</p>
           <p className="text-xs text-white/75">
-            {visit.status === 'completed'
-              ? `${repeats ? `${formatNumber(visit.facesSeen)} faces in ${photos} · each child counted once` : `From ${photos}`}${failed ? ` · ${failed} could not be counted` : ''}`
-              : 'Counted by the AI when the visit is uploaded'}
+            {visit.aiCounting
+              ? 'AI is counting the students… this takes a few minutes'
+              : visit.status === 'completed'
+                ? `${repeats ? `${formatNumber(visit.facesSeen)} faces in ${photos} · each child counted once` : `From ${photos}`}${failed ? ` · ${failed} could not be counted` : ''}`
+                : 'Counted by the AI when the visit is uploaded'}
           </p>
           <VisitStatusBadge status={visit.status} className="mt-2" />
         </div>
