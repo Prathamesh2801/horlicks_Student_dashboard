@@ -461,6 +461,7 @@ All of these live in [`src/services/api/pending.service.js`](../src/services/api
 
 | Feature | Endpoint needed | Fields |
 |---|---|---|
+| **Photo limits per visit** | Allow **20 normal** and **10 AI (headcount)** photos per visit, e.g. `MAX_NORMAL_PHOTOS=20`, `MAX_AI_PHOTOS=10` in `.env` (today one `MAX_PHOTOS_PER_TYPE=10` would reject normal photos 11–20) | App enforces 20 / 10 already (`MAX_PHOTOS` in `src/constants/visit.js`) |
 | **POC on a visit** | `POST Staff/visit.php` accepts and stores `poc_name`, `poc_contact`; list/get return `POC_Name`, `POC_Contact` | App already sends them |
 | **Client role** | `Role` = `Client` in `Admin/user.php` + login; read-only access to approved data | App already sends `role: "Client"` |
 | **Visit review** | `PUT Admin/visit_review.php` `{ visit_id, status: waiting/approved/rejected }`; visits return `Review_Status`, `Reviewed_AT` | Bulk approve: accept a list of `visit_id`s |

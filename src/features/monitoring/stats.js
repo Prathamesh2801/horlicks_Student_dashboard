@@ -36,6 +36,13 @@ export function weeklyStudents(visits) {
     .map(([week, students]) => ({ week, students }))
 }
 
+// One visit's photos for the client: ★ Best first, then activity photos set to "Show", then class headcount photos.
+export const clientVisitPhotos = (v) =>
+  v.photos
+    .filter((p) => p.show)
+    .map((p) => ({ ...p, visit: v }))
+    .sort((a, b) => b.best - a.best || (a.type === 'headcount') - (b.type === 'headcount'))
+
 // Photos the client may see from approved visits: headcount photos + normal photos set to "Show", ★ Best first.
 export function sharedPhotos(visits, type = '') {
   const list = visits.flatMap((v) =>

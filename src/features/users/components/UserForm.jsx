@@ -5,9 +5,9 @@ import { ROLES } from '../../../constants/visit'
 
 const ROLE_ICON = { staff: MdPerson, admin: MdLock, client: MdVisibility }
 const ROLE_HINT = {
-  staff: 'Staff use the phone app.',
+  staff: 'The Ground Team uses the phone app to record school visits.',
   admin: 'Admins use this dashboard.',
-  client: 'Clients get the read-only client view: approved data only, no users or staff data.',
+  client: 'Clients get the read-only client view: approved data only, no users or Ground Team data.',
 }
 
 export default function UserForm({ onSubmit, onCancel }) {

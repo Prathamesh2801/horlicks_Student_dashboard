@@ -5,8 +5,8 @@ import { formatShortDate } from '../../../utils/format'
 
 const PAGE = 12
 
-// Grid with "View more" (12 at a time) so big campaigns stay fast.
-export default function PhotoGallery({ photos }) {
+// Grid with "View more" (12 at a time) so big campaigns stay fast. inVisit = all from one visit (no school captions).
+export default function PhotoGallery({ photos, inVisit }) {
   const [shown, setShown] = useState(PAGE)
   const [viewing, setViewing] = useState(null)
   if (!photos.length) return <p className="py-12 text-center text-sm text-gray-500">No photos shared yet.</p>
@@ -38,12 +38,14 @@ export default function PhotoGallery({ photos }) {
                 </span>
               </span>
             </button>
-            <figcaption className="px-3.5 py-3">
-              <p className="truncate text-sm font-semibold">{p.visit.schoolName}</p>
-              <p className="text-xs text-gray-500">
-                {p.visit.cityName} · {formatShortDate(p.visit.date)}
-              </p>
-            </figcaption>
+            {!inVisit && (
+              <figcaption className="px-3.5 py-3">
+                <p className="truncate text-sm font-semibold">{p.visit.schoolName}</p>
+                <p className="text-xs text-gray-500">
+                  {p.visit.cityName} · {formatShortDate(p.visit.date)}
+                </p>
+              </figcaption>
+            )}
           </figure>
         ))}
       </div>

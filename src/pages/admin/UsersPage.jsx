@@ -11,7 +11,7 @@ import { formatNumber, formatTime } from '../../utils/format'
 
 const ROLE_FILTERS = [
   { value: 'admin', label: 'Admins' },
-  { value: 'staff', label: 'Staff' },
+  { value: 'staff', label: 'Ground Team' },
   { value: 'client', label: 'Clients' },
 ]
 const STATUS_FILTERS = [

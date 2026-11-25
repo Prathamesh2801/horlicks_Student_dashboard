@@ -49,7 +49,8 @@ export default function TargetCard({ data, client, editTo }) {
         <div>
           <h2 className="font-bold">{client ? 'Target vs achievement by city' : 'Target vs achievement'}</h2>
           <p className="text-xs text-gray-500">
-            Campaign {formatDate(data.start)} – {formatDate(data.end)} · day {o.dayNo} of {o.totalDays} · approved visits
+            Campaign {formatDate(data.start)} – {formatDate(data.end)} · day {o.dayNo} of {o.totalDays}
+            {!client && ' · approved visits'}
           </p>
         </div>
         {editTo && (

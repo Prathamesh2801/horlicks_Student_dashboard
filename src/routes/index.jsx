@@ -5,9 +5,10 @@ import StaffLayout from '../layouts/StaffLayout'
 import LoginPage from '../pages/LoginPage'
 import NotFoundPage from '../pages/NotFoundPage'
 import SharedReportPage from '../pages/SharedReportPage'
-import ClientGalleryPage from '../pages/client/ClientGalleryPage'
 import ClientMapPage from '../pages/client/ClientMapPage'
 import ClientOverviewPage from '../pages/client/ClientOverviewPage'
+import ClientVisitDetailPage from '../pages/client/ClientVisitDetailPage'
+import ClientVisitsPage from '../pages/client/ClientVisitsPage'
 import DashboardPage from '../pages/admin/DashboardPage'
 import MapPage from '../pages/admin/MapPage'
 import ReportsPage from '../pages/admin/ReportsPage'
@@ -64,8 +65,9 @@ export const router = createHashRouter([
     ),
     children: [
       { index: true, element: <ClientOverviewPage /> },
+      { path: 'visits', element: <ClientVisitsPage /> },
+      { path: 'visits/:id', element: <ClientVisitDetailPage /> },
       { path: 'map', element: <ClientMapPage /> },
-      { path: 'gallery', element: <ClientGalleryPage /> },
     ],
   },
   // Shared report link (no login).

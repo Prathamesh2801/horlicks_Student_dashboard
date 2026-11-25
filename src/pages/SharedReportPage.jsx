@@ -68,19 +68,19 @@ export default function SharedReportPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{report.title}</h1>
           <p className="mt-1 text-gray-500">
-            {report.period} · {formatNumber(visits.length)} approved visits selected by the admin
+            {report.period} · {formatNumber(visits.length)} school visits
           </p>
         </div>
-        <KpiTiles stats={stats} client targetPct={campaign.progress?.overall.pct} period="approved" />
+        <KpiTiles stats={stats} client targetPct={campaign.progress?.overall.pct} />
         {campaign.progress && <TargetCard data={{ ...campaign.progress, byCity: [] }} client />}
-        <TrendChart visits={visits} />
+        <TrendChart visits={visits} note="Per week" />
         <Averages stats={stats} />
         <section>
           <h2 className="mb-3 text-lg font-bold">Photos</h2>
           <PhotoGallery photos={sharedPhotos(visits)} />
         </section>
         <p className="border-t border-gray-200 pt-4 text-xs text-gray-500">
-          Only visits approved by the admin are included. The link was shared by the programme admin and can be turned off at any time.
+          Shared by the programme admin. The link can be turned off at any time.
         </p>
       </main>
     </div>

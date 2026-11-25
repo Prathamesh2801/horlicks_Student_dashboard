@@ -15,7 +15,7 @@ export default function KpiTiles({ stats, period, client, targetPct }) {
     { label: 'Schools covered', sub: period, value: formatNumber(stats.schools), icon: MdSchool, tone: 'bg-accent-50 text-accent-600' },
     {
       label: 'Visits completed',
-      sub: client ? 'approved' : period,
+      sub: client ? null : period,
       value: formatNumber(stats.visits),
       icon: MdCheck,
       tone: 'bg-green-50 text-green-600',
@@ -23,7 +23,7 @@ export default function KpiTiles({ stats, period, client, targetPct }) {
     client
       ? {
           label: '% of target',
-          sub: 'approved visits',
+          sub: 'of the campaign target',
           value: targetPct == null ? '—' : `${Math.round(targetPct * 100)}%`,
           icon: MdLocationCity,
           tone: 'bg-amber-50 text-amber-600',

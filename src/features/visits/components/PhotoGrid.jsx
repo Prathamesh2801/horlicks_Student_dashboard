@@ -28,7 +28,7 @@ function AiPill({ photo, editable }) {
   )
 }
 
-// Admin controls under a normal photo: "Show" to the client, ★ Best (first in the client gallery and reports).
+// Admin controls under a normal photo: "Show" to the client, ★ Best (first on the client visit page and in reports).
 function Flags({ photo }) {
   return (
     <div className="flex items-center justify-between px-2.5 py-2">

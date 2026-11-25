@@ -20,12 +20,12 @@ const SORT_OPTIONS = [
   { value: '-count', label: 'Most students' },
   { value: 'school', label: 'School A–Z' },
   { value: 'city', label: 'City A–Z' },
-  { value: 'staff', label: 'Staff A–Z' },
+  { value: 'staff', label: 'Ground Team A–Z' },
   { value: 'review', label: 'Review status' },
 ]
 
 const exportRows = (visits) => [
-  ['Visit ID', 'Date', 'School', 'City', 'Staff', 'POC name', 'POC contact', 'Review', 'Photos', 'Unique students', 'Faces (incl. repeats)', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
+  ['Visit ID', 'Date', 'School', 'City', 'Ground Team', 'POC name', 'POC contact', 'Review', 'Photos', 'Unique students', 'Faces (incl. repeats)', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
   ...visits.map((v) => [
     v.id, v.date, v.schoolName, v.cityName, v.staffName, v.pocName, v.pocContact, REVIEW[v.review]?.label,
     v.photoCount, v.headcount, v.facesSeen, v.aiFailed, v.lat, v.lng, v.submittedAt,
@@ -89,7 +89,7 @@ export default function VisitsPage() {
         }
       />
 
-      <TableToolbar table={table} placeholder="Search school, staff, city or POC" onRefresh={reload} refreshing={refreshing} sortOptions={SORT_OPTIONS}>
+      <TableToolbar table={table} placeholder="Search school, Ground Team, city or POC" onRefresh={reload} refreshing={refreshing} sortOptions={SORT_OPTIONS}>
         <Select
           className="w-[calc(50%-0.25rem)] sm:w-40"
           aria-label="City"
@@ -101,8 +101,8 @@ export default function VisitsPage() {
         <PeriodFilter table={table} />
         <Select
           className="w-[calc(50%-0.25rem)] sm:w-40"
-          aria-label="Staff"
-          placeholder="All staff"
+          aria-label="Ground Team"
+          placeholder="All Ground Team"
           value={table.state.staff}
           onChange={(e) => table.set({ staff: e.target.value })}
           options={staff}

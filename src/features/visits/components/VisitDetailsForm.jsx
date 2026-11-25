@@ -93,7 +93,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           required
         />
         <LocationBox geo={geo} onRetry={() => locate().catch(() => {})} />
-        <p className="text-xs text-gray-500">Location and time are saved automatically. Staff cannot type them.</p>
+        <p className="text-xs text-gray-500">Location and time are saved automatically and can’t be typed in.</p>
       </Card>
 
       <BottomBar>

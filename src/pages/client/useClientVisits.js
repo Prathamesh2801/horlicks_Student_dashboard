@@ -6,11 +6,12 @@ import { useAsync } from '../../hooks/useAsync'
 import { usePendingChanges } from '../../hooks/usePendingChanges'
 import { getCities, listVisits } from '../../services/api/visits.service'
 
-export const CLIENT_FILTERS = { city: '', period: 'all', from: '', to: '', type: '' }
+export const CLIENT_FILTERS = { city: '', period: 'all', from: '', to: '' }
 
 // Approved visits for the client view, with date range + city filters in the URL.
 // ponytail: filters approved visits in the browser; the server's client endpoint should return only those.
-export function useClientVisits() {
+// table: extra useTableState options (search, sorting) for the Visits list.
+export function useClientVisits(table = {}) {
   const [params] = useSearchParams()
   const get = (k) => params.get(k) ?? CLIENT_FILTERS[k]
   const [city, period, from, to] = ['city', 'period', 'from', 'to'].map(get)
@@ -20,10 +21,10 @@ export function useClientVisits() {
   )
   const res = useAsync(load)
   usePendingChanges(res.reload)
-  const table = useTableState({ rows: res.data, filters: CLIENT_FILTERS, searchText: () => '' })
+  const state = useTableState({ rows: res.data, filters: CLIENT_FILTERS, searchText: () => '', ...table })
   const [cities, setCities] = useState([])
   useEffect(() => {
     getCities().then(setCities, () => {})
   }, [])
-  return { ...res, table, cities, city }
+  return { ...res, table: state, cities, city }
 }

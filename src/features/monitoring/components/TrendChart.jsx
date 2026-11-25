@@ -4,14 +4,14 @@ import { formatNumber, formatShortDate } from '../../../utils/format'
 import { weeklyStudents } from '../stats'
 
 // Unique students reached per week (bars). The current week is lighter (still in progress).
-export default function TrendChart({ visits, title = 'Students reached over time' }) {
+export default function TrendChart({ visits, title = 'Students reached over time', note = 'Per week · approved visits' }) {
   const weeks = weeklyStudents(visits)
   const max = Math.max(1, ...weeks.map((w) => w.students))
   const thisWeek = weeklyStudents([{ date: new Date().toLocaleDateString('en-CA'), headcount: 0 }])[0].week
   return (
     <Card className="p-5">
       <h2 className="font-bold">{title}</h2>
-      <p className="text-xs text-gray-500">Per week · approved visits</p>
+      <p className="text-xs text-gray-500">{note}</p>
       {!weeks.length ? (
         <p className="py-16 text-center text-sm text-gray-500">No visits in this period yet.</p>
       ) : (

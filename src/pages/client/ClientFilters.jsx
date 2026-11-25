@@ -1,10 +1,10 @@
 import { PeriodFilter, TableToolbar } from '../../components/table'
 import { Select } from '../../components/ui'
 
-// Date range + city (+ optional extra filters as children) for the client pages.
-export default function ClientFilters({ table, cities, onRefresh, refreshing, children }) {
+// Date range + city (+ optional extra filters as children) for the client pages. search = show the search box.
+export default function ClientFilters({ table, cities, onRefresh, refreshing, search, children }) {
   return (
-    <TableToolbar table={table} hideSearch onRefresh={onRefresh} refreshing={refreshing}>
+    <TableToolbar table={table} hideSearch={!search} placeholder="Search school or city" onRefresh={onRefresh} refreshing={refreshing}>
       <PeriodFilter table={table} />
       <Select
         className="w-full sm:w-44"

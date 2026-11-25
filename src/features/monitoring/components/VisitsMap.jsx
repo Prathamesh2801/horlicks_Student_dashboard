@@ -22,7 +22,7 @@ function FitToPins({ points }) {
 }
 
 // ponytail: plain markers; visits at the same spot overlap. Add leaflet.markercluster when visits reach the thousands.
-// client = read-only client map: no staff names, no admin links.
+// client = read-only client map: no Ground Team names; links to the client visit page.
 export default function VisitsMap({ visits, client }) {
   const pinned = visits.filter((v) => v.lat != null)
   return (
@@ -61,14 +61,13 @@ export default function VisitsMap({ visits, client }) {
                   <MdPhotoLibrary className="size-4 text-gray-500" /> {photoCount(v, client)} photos
                 </span>
               </div>
-              {!client && (
-                <>
-                  <VisitStatusBadge status={v.status} />
-                  <Link to={`/admin/visits/${v.id}`} className="block text-xs font-semibold !text-brand-700">
-                    Open visit →
-                  </Link>
-                </>
-              )}
+              {!client && <VisitStatusBadge status={v.status} />}
+              <Link
+                to={client ? `/client/visits/${v.id}` : `/admin/visits/${v.id}`}
+                className="block text-xs font-semibold !text-brand-700"
+              >
+                {client ? 'View visit and photos →' : 'Open visit →'}
+              </Link>
             </div>
           </Popup>
         </CircleMarker>

@@ -67,8 +67,8 @@ export default function DashboardPage() {
         />
         <Select
           className="w-[calc(50%-0.25rem)] sm:w-40"
-          aria-label="Staff"
-          placeholder="All staff"
+          aria-label="Ground Team"
+          placeholder="All Ground Team"
           value={table.state.staff}
           onChange={(e) => table.set({ staff: e.target.value })}
           options={staff}

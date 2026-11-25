@@ -25,7 +25,7 @@ export default function MapPage() {
         subtitle={
           visits
             ? `${visits.filter((v) => v.lat != null).length} of ${visits.length} visits have GPS · pins at the same spot overlap`
-            : 'Visit locations captured by staff'
+            : 'Visit locations captured by the Ground Team'
         }
         action={
           <div className="flex flex-wrap gap-x-4 gap-y-1 self-center text-xs text-gray-700">

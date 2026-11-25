@@ -11,7 +11,6 @@ import {
   MdMap,
   MdMenu,
   MdPerson,
-  MdPhotoLibrary,
   MdVisibility,
 } from 'react-icons/md'
 import Logo from '../components/common/Logo'
@@ -37,8 +36,8 @@ const CLIENT = {
   role: 'Client',
   nav: [
     { to: '/client', label: 'Overview', icon: MdDashboard, end: true },
+    { to: '/client/visits', label: 'Visits', icon: MdFormatListBulleted },
     { to: '/client/map', label: 'Map', icon: MdMap },
-    { to: '/client/gallery', label: 'Gallery', icon: MdPhotoLibrary },
   ],
 }
 
@@ -152,7 +151,7 @@ export default function AdminLayout({ area = ADMIN }) {
         {area === CLIENT && user.role === 'admin' && (
           <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-purple-50 px-4 py-2.5 text-sm text-purple-800 ring-1 ring-purple-100">
             <span>
-              <b>Client preview.</b> This is what a Client login sees: approved visits only, no staff data.
+              <b>Client preview.</b> This is what a Client login sees: approved visits only, no Ground Team data.
             </span>
             <Link to="/admin" className="font-semibold hover:underline">
               ← Back to admin

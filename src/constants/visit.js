@@ -6,8 +6,8 @@ export const PHOTO_TYPES = [
   { value: 'headcount', label: 'Headcount · AI' },
 ]
 
-// Server limit per photo type (MAX_PHOTOS_PER_TYPE in the server .env).
-export const MAX_PHOTOS_PER_TYPE = 10
+// Photos per visit, per type (client's rule). The server must allow the same (see docs/SERVER_API.md).
+export const MAX_PHOTOS = { normal: 20, headcount: 10 }
 
 // draft / queued / failed = on the phone only; completed = uploaded to the server (AI count done).
 export const VISIT_STATUS = {
@@ -38,7 +38,7 @@ export function periodRange(period, from = '', to = '') {
 }
 
 export const ROLES = [
-  { value: 'staff', label: 'Staff' },
+  { value: 'staff', label: 'Ground Team' },
   { value: 'admin', label: 'Admin' },
   { value: 'client', label: 'Client' },
 ]

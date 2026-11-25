@@ -14,7 +14,7 @@ import {
 import BottomBar from '../../components/common/BottomBar'
 import TopBar from '../../components/common/TopBar'
 import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
-import { MAX_PHOTOS_PER_TYPE, PHOTO_TYPES } from '../../constants/visit'
+import { MAX_PHOTOS, PHOTO_TYPES } from '../../constants/visit'
 import { PhotoGrid, useDraft } from '../../features/visits'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { addPhoto, deleteDraft, deletePhoto, updateDraft } from '../../services/drafts/draftStore'
@@ -94,14 +94,18 @@ export default function VisitPhotosPage() {
     headcount: draft?.photos.filter((p) => p.type === 'headcount') ?? [],
   }
   const stillAdding = adding.normal + adding.headcount > 0
-  const full = photos[tab].length + adding[tab] >= MAX_PHOTOS_PER_TYPE
+  const max = MAX_PHOTOS[tab]
+  const full = photos[tab].length + adding[tab] >= max
+  const kind = tab === 'normal' ? 'normal' : 'headcount'
 
   const handleFiles = async (e) => {
-    const room = MAX_PHOTOS_PER_TYPE - photos[tab].length - adding[tab]
+    const room = max - photos[tab].length - adding[tab]
     const all = [...e.target.files]
     e.target.value = ''
     const files = all.slice(0, Math.max(0, room))
-    setMessage(all.length > files.length ? `Up to ${MAX_PHOTOS_PER_TYPE} photos per type. ${all.length - files.length} not added.` : null)
+    setMessage(
+      all.length > files.length ? `Maximum ${max} ${kind} photos per visit. ${all.length - files.length} not added.` : null,
+    )
     if (!files.length) return
     const type = tab
     setAdding((u) => ({ ...u, [type]: u[type] + files.length }))
@@ -197,12 +201,12 @@ export default function VisitPhotosPage() {
               role="tab"
               aria-selected={active}
               onClick={() => setTab(t.value)}
-              className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-semibold transition ${active ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-600'}`}
+              className={`flex items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-2 text-[13px] font-semibold transition sm:gap-1.5 sm:text-sm ${active ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-600'}`}
             >
               {t.value === 'headcount' && <MdGroups className={`size-4 ${active ? 'text-accent-600' : ''}`} />}
               {t.label}
               <span className={`rounded-full px-1.5 text-[11px] ${active ? 'bg-brand-700 text-white' : 'bg-gray-300/80 text-gray-700'}`}>
-                {photos[t.value].length}
+                {photos[t.value].length}/{MAX_PHOTOS[t.value]}
               </span>
             </button>
           )
@@ -229,8 +233,8 @@ export default function VisitPhotosPage() {
           <MdUpload className="size-5" /> Upload
         </Button>
       </div>
-      <p className="mt-1.5 text-right text-[11px] text-gray-500">
-        {photos[tab].length} / {MAX_PHOTOS_PER_TYPE} {tab === 'normal' ? 'normal' : 'headcount'} photos
+      <p className={`mt-1.5 text-right text-[11px] ${full ? 'font-semibold text-amber-700' : 'text-gray-500'}`}>
+        {full && !adding[tab] && !message ? `Maximum reached: ${max} ${kind} photos. Delete one to add another.` : `${photos[tab].length} / ${max} ${kind} photos`}
       </p>
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFiles} />
       <input ref={uploadRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} />

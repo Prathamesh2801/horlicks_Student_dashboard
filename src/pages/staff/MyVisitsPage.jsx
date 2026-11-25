@@ -72,7 +72,7 @@ export default function MyVisitsPage() {
         <Logo className="h-9 w-auto" />
         <div className="min-w-0 flex-1">
           <p className="font-bold text-brand-700">{config.appName}</p>
-          <p className="truncate text-xs text-gray-500">{user.name} · Staff</p>
+          <p className="truncate text-xs text-gray-500">{user.name} · Ground Team</p>
         </div>
         {canInstall && (
           <button
@@ -95,7 +95,9 @@ export default function MyVisitsPage() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-white/85">This month</p>
             {waiting > 0 && (
-              <span className="rounded-full bg-sun-400 px-2.5 py-0.5 text-xs font-semibold text-brand-900">{waiting} waiting to upload</span>
+              <span className="rounded-full bg-sun-400 px-2.5 py-0.5 text-xs font-semibold text-brand-900">
+                {waiting} waiting to upload
+              </span>
             )}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-4">

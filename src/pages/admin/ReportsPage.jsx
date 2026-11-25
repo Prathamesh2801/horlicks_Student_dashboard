@@ -123,7 +123,7 @@ export default function ReportsPage() {
             <h2 className="font-bold">1 · Choose visits</h2>
             <p className="text-xs text-gray-500">Only approved visits can be added to a report</p>
           </div>
-          <TableToolbar table={table} placeholder="Search school or staff" onRefresh={reload} refreshing={refreshing}>
+          <TableToolbar table={table} placeholder="Search school or Ground Team" onRefresh={reload} refreshing={refreshing}>
             <PeriodFilter table={table} />
             <Select
               className="w-[calc(50%-0.25rem)] sm:w-40"
@@ -135,8 +135,8 @@ export default function ReportsPage() {
             />
             <Select
               className="w-[calc(50%-0.25rem)] sm:w-40"
-              aria-label="Staff"
-              placeholder="All staff"
+              aria-label="Ground Team"
+              placeholder="All Ground Team"
               value={table.state.staff}
               onChange={(e) => table.set({ staff: e.target.value })}
               options={staffOptions(data)}
@@ -202,7 +202,7 @@ export default function ReportsPage() {
                     <th className="px-3 py-3">Date</th>
                     <th className="px-3 py-3">School</th>
                     <th className="px-3 py-3">City</th>
-                    <th className="px-3 py-3">Staff</th>
+                    <th className="px-3 py-3">Ground Team</th>
                     <th className="px-3 py-3">Students</th>
                     <th className="px-3 py-3">Photos shown</th>
                   </tr>

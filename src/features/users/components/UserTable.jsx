@@ -23,7 +23,7 @@ function Actions({ user, isMe, onToggleActive, onResetPassword }) {
   )
 }
 
-const ROLE_BADGE = { admin: ['brand', 'Admin'], client: ['purple', 'Client'], staff: ['gray', 'Staff'] }
+const ROLE_BADGE = { admin: ['brand', 'Admin'], client: ['purple', 'Client'], staff: ['gray', 'Ground Team'] }
 const RoleBadge = ({ role }) => {
   const [tone, label] = ROLE_BADGE[role] ?? ROLE_BADGE.staff
   return <Badge tone={tone}>{label}</Badge>
