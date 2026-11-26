@@ -476,5 +476,6 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 |---|---|---|
 | **Client-safe PDF made by an Admin** | e.g. `"audience": "Client"` on `POST Report/report.php`: build the PDF as a Client would see it (Approved visits only, approved photos only, no POC / phone) | Today the PDF follows the requester's role, so an admin's PDF (the one shared with the client) contains every POC phone number and the photos the admin chose **not** to show |
 | **Targets count** | Consider counting only **Approved** visits (today Pending counts too) | The client sees approved visits only, so their numbers and the target can differ |
+| **Visit Start Timestamp** (revised scope v2) | Store `visit_started_at` (`YYYY-MM-DD HH:MM:SS`, IST) sent on `POST Staff/visit.php`; return it as `Visit_Started_AT` | When the Ground Team opened the visit form, kept apart from visit date and `Created_AT`. The app already sends it and shows "Form started" once returned |
 | **Photo limits** | **20 normal** and **10 AI** photos per visit (today `MAX_PHOTOS_PER_TYPE=10` for both) | App allows 20 normal; the server would reject photos 11–20 |
 | **Bulk approve** (optional) | Accept a list of `visit_id`s in one `PUT` | Approving hundreds sends one request each today |

@@ -109,6 +109,7 @@ export default function VisitDetail({ visit, admin }) {
           </Row>
         )}
         <Row label="Ground Team">{visit.staffName}</Row>
+        {visit.startedAt && <Row label="Form started">{formatDateTime(visit.startedAt)}</Row>}
         <Row label="Submitted">{formatDateTime(visit.submittedAt)}</Row>
         {admin ? (
           <Row label="Photos">

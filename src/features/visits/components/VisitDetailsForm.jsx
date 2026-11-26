@@ -20,7 +20,9 @@ function LocationBox({ geo, onRetry }) {
       </div>
     )
   return (
-    <div className={`flex items-center gap-3 rounded-xl p-3.5 text-sm ${geo.error ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+    <div
+      className={`flex items-center gap-3 rounded-xl p-3.5 text-sm ${geo.error ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'}`}
+    >
       {geo.loading ? <Spinner className="size-5 shrink-0" /> : <MdLocationOn className="size-5 shrink-0" />}
       <p className="flex-1">{geo.loading ? 'Getting your location…' : (geo.error ?? 'Location is needed to start a visit.')}</p>
       {!geo.loading && (
@@ -35,6 +37,8 @@ function LocationBox({ geo, onRetry }) {
 // Step 1 of a visit: Date, City (server list, cached for offline use), School name, POC name + contact number, GPS.
 export default function VisitDetailsForm({ onSubmit, submitting }) {
   const [form, setForm] = useState({ date: todayISO(), city: '', schoolName: '', pocName: '', pocContact: '' })
+  // Visit Start Timestamp: when the form was opened (not when it's submitted).
+  const [startedAt] = useState(() => new Date().toISOString())
   const [cities, setCities] = useState([])
   const [citiesError, setCitiesError] = useState(null)
   const geo = useGeolocation()
@@ -46,14 +50,14 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   }, [locate])
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
-  const contactOk = /^[6-9]\d{9}$/.test(form.pocContact.replace(/\D/g, '').slice(-10))
+  const contactOk = /^[6-9]\d{9}$/.test(form.pocContact)
   const ready = form.date && form.city && form.schoolName.trim().length >= 2 && form.pocName.trim().length >= 2 && contactOk && geo.coords
 
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!ready) return
     const { lat, lng, accuracy } = geo.coords
-    onSubmit({ ...form, schoolName: form.schoolName.trim(), pocName: form.pocName.trim(), pocContact: form.pocContact.replace(/\D/g, '').slice(-10), lat, lng, accuracy })
+    onSubmit({ ...form, schoolName: form.schoolName.trim(), pocName: form.pocName.trim(), lat, lng, accuracy, startedAt })
   }
 
   return (
@@ -86,10 +90,16 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           inputMode="numeric"
           placeholder="10-digit mobile number"
           value={form.pocContact}
-          onChange={set('pocContact')}
-          maxLength={14}
+          onChange={(e) => setForm((f) => ({ ...f, pocContact: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+          maxLength={10}
           autoComplete="off"
-          hint={form.pocContact && !contactOk ? 'Enter a 10-digit mobile number' : undefined}
+          hint={
+            form.pocContact && !contactOk
+              ? form.pocContact.length < 10
+                ? `${10 - form.pocContact.length} more digits`
+                : 'Mobile numbers start with 6, 7, 8 or 9'
+              : undefined
+          }
           required
         />
         <LocationBox geo={geo} onRetry={() => locate().catch(() => {})} />

@@ -15,6 +15,8 @@ const AI_FROM = { Done: 'done', Failed: 'failed' }
 
 // "2026-11-17 11:45:10" (server time, IST) → "2026-11-17T11:45:10"
 const toDate = (s) => (s ? s.replace(' ', 'T') : null)
+// ISO time → "2026-11-17 11:45:10" in IST (the server's format)
+const serverTime = (iso) => new Date(iso).toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' })
 
 // Server visit → app visit (same shape the pages already use)
 function toVisit(v) {
@@ -47,6 +49,7 @@ function toVisit(v) {
     staffName: v.Staff_Name,
     lat: v.Latitude == null ? null : Number(v.Latitude),
     lng: v.Longitude == null ? null : Number(v.Longitude),
+    startedAt: toDate(v.Visit_Started_AT), // when the Ground Team opened the visit form (null until the server stores it)
     submittedAt: toDate(v.Created_AT),
     photos: [...normal, ...ai],
     photoCount: normal.length + ai.length,
@@ -118,7 +121,10 @@ export async function getVisit(id) {
 // Uploads a whole visit at once (multipart). The server only queues the AI photos; their counts arrive a few
 // minutes later (aiCounting). onProgress(0..1) reports the upload.
 // Returns { visit, warnings }.
-export async function createVisit({ date, city, schoolName, pocName, pocContact, lat, lng, normalPhotos, aiPhotos }, onProgress) {
+export async function createVisit(
+  { date, city, schoolName, pocName, pocContact, lat, lng, startedAt, normalPhotos, aiPhotos },
+  onProgress,
+) {
   const form = new FormData()
   form.append('visit_date', date)
   form.append('city', city)
@@ -127,6 +133,7 @@ export async function createVisit({ date, city, schoolName, pocName, pocContact,
   if (pocContact) form.append('poc_contact', pocContact)
   form.append('latitude', String(lat))
   form.append('longitude', String(lng))
+  if (startedAt) form.append('visit_started_at', serverTime(startedAt))
   normalPhotos.forEach((blob, i) => form.append('normal_photos[]', blob, `normal-${i + 1}.jpg`))
   aiPhotos.forEach((blob, i) => form.append('ai_photos[]', blob, `headcount-${i + 1}.jpg`))
   const data = await api.post(VISITS, form, {

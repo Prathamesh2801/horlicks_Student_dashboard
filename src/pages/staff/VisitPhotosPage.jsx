@@ -19,7 +19,7 @@ import { PhotoGrid, useDraft } from '../../features/visits'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { addPhoto, deleteDraft, deletePhoto, updateDraft } from '../../services/drafts/draftStore'
 import { uploadDraft } from '../../services/drafts/uploadQueue'
-import { compressImage } from '../../utils/compressImage'
+import { compressImage, geoStamp } from '../../utils/compressImage'
 
 const HELP = { normal: 'Banner, leaflet, marketing and other activity photos.' }
 
@@ -110,10 +110,12 @@ export default function VisitPhotosPage() {
     const type = tab
     setAdding((u) => ({ ...u, [type]: u[type] + files.length }))
     // Fall back to the visit's location if GPS is unavailable for this photo.
-    const coords = await locate().catch(() => ({ lat: draft.lat, lng: draft.lng }))
+    const coords = await locate().catch(() => ({ lat: draft.lat, lng: draft.lng, accuracy: draft.accuracy, fromVisit: true }))
     for (const file of files) {
       try {
-        await addPhoto(id, { file: await compressImage(file), type, lat: coords.lat, lng: coords.lng })
+        // Geo-tag printed on the image itself: coordinates, date/time, school.
+        const stamp = geoStamp(coords, new Date(), draft)
+        await addPhoto(id, { file: await compressImage(file, { stamp }), type, lat: coords.lat, lng: coords.lng })
       } catch (err) {
         setMessage(err.message)
       }
