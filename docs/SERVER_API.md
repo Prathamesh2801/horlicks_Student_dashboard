@@ -1,6 +1,6 @@
 # Server API reference: Horlicks School Tribes API
 
-> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.12.0**; what changed and what's still needed is at the end ("Connected in the app").
+> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.19.0**; what changed and what's still needed is at the end ("Connected in the app").
 > Live, always-current version: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 > (it also has a *Try it* console). If this copy and the live page differ, **the live page wins**: update this file.
 
@@ -457,7 +457,7 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 - [x] ~~Excel / PPT export~~: Excel and CSV are made in the browser; reports are shared as links (no PDF / PPT).
 - [ ] Production: **HTTPS** + public domain for the API (needed for installing the app and for phones on mobile data).
 
-### Connected in the app (server v1.12.0, 25 Nov 2026)
+### Connected in the app (server v1.19.0, 26 Nov 2026)
 
 | Feature | Server | App |
 |---|---|---|
@@ -469,6 +469,12 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 | ★ Best photo (v1.11) | `best_normal_photo_ids` on `PUT Staff/visit.php`; photos return `Is_Best` | ★ on each normal photo; Best first for the client |
 | Background AI count (v1.10) | `AI_Count_Status` Pending / Working / Done / Failed, `AI_Error`; `retry_ai_count` on PUT | "Counting…" in lists and visit page (refreshes every 15 s), "AI counting" filter, **Count again** button with the reason when it failed |
 | PDF reports (v1.12) | `POST Report/report.php` `{ visit_ids }` (max 50) → worker → `GET ?report_id=` Pending / Working / Done / Failed with `Pdf_Url` (no login needed); `GET` lists; `PUT { report_id, retry }` | Reports page: choose visits → Generate PDF (checks every 3 s) → **Open PDF** / **Copy link**; Generated reports list with Try again |
+| Visit form fields (v1.13) | `district` (`Options.Districts`), `village`, `udise`, `school_type`, `class_category` (code 1 / 2 / 3 = classes 1–3 / 4–6 / 7–9), `start_time` (HH:MM); returned as `District`, `Village`, `UDISE`, `School_Type`, `Class_Category`, `Start_Time` | Ground Team form, visit page, Excel. `start_time` = when the form was opened (IST) |
+| Form settings (v1.14) | `Admin/visit_form.php`: GET (Admin, Staff) `Fields[]` with `Show` / `Required`; PUT `{ fields: { name: { show, required } } }` for the 8 switchable fields | Admin → Settings (all 8 fields); the Ground Team form hides / makes optional accordingly (cached offline) |
+| Who changed what (v1.15) | `Status_Updated_By` / `Status_Updated_AT` | "Set by … " under Review on the admin visit page |
+| Photo categories (v1.16–1.17) | Normal photos uploaded as `normal_photos[<key>][]` (keys: reporting, collateral, activity, gratification, sample_distribution, closing); photos return `Category` | Category chosen before the camera; chip on each photo; Excel Photos sheet |
+| Auditor + audit (v1.18) | `Role: Auditor`; `PUT Staff/visit.php` `{ visit_id, is_audit_pass, auditor_comment }` (Auditors only); visits return `Is_Audit_Pass`, `Auditor_Comment`, `Audit_Updated_AT` (+ `Audit_Updated_By` for Admin / Auditor) | Audit card (Approve / Reject; the app requires a comment to reject), Audit column / filter / totals, Excel columns |
+| Count correction (v1.19) | `Admin/visit_count.php` PUT `{ visit_id, unique_person_count, reason }`, GET `?visit_id=` history; `Unique_Count_Manual` | Admin visit page: "Correct the student count" with reason and change history; card says "corrected by Admin" |
 
 ### Still needed from the server (for this app)
 
@@ -476,12 +482,6 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 |---|---|---|
 | **Client-safe PDF made by an Admin** | e.g. `"audience": "Client"` on `POST Report/report.php`: build the PDF as a Client would see it (Approved visits only, approved photos only, no POC / phone) | Today the PDF follows the requester's role, so an admin's PDF (the one shared with the client) contains every POC phone number and the photos the admin chose **not** to show |
 | **Targets count** | Consider counting only **Approved** visits (today Pending counts too) | The client sees approved visits only, so their numbers and the target can differ |
-| **New visit fields** (revised scope v2) | Store on `POST Staff/visit.php`: `village` (text), `udise_code` (11 digits), `school_type` (Government / Private), `class_category` (text; options still to be confirmed by the client); return `Village`, `UDISE_Code`, `School_Type`, `Class_Category` (Clients too) | The app already sends them; the visit page and Excel/CSV show them once returned |
-| **District** (client feedback 26 Nov) | A district list like `VISIT_CITIES`: return `Districts` next to `Cities` in `GET Staff/visit.php` (19 Odisha districts sent by the client); store `district` on create and return `District` | The form already sends it; until `Districts` is returned the app uses the client's 19 names |
-| **Per-photo GPS + category** (Excel export, photo categories) | Store `normal_photos_gps` / `ai_photos_gps` (JSON arrays `[{lat, lng, taken_at, category}]` in the same order as the files; `category` is Reporting, Collateral, Activity, Gratification, Sample Distribution or Closing for normal photos, `null` for AI photos); return `Latitude`, `Longitude`, `Taken_AT`, `Category` on each photo | The Excel "Photos" sheet shows each photo's own GPS (today it falls back to the visit's GPS). The geo-tag is also printed on every photo |
-| **Form settings** (admin show/hide POC and Contact) | New `Admin/settings.php`: `GET` (Admin **and Staff**, so phones can read it) → `{ Data: { Poc_Name_Show, Poc_Name_Required, Poc_Contact_Show, Poc_Contact_Required } }` (booleans); `PUT` (Admin only) with `poc_name_show`, `poc_name_required`, `poc_contact_show`, `poc_contact_required`. **`POST Staff/visit.php` must then accept a visit without `poc_name` / `poc_contact` when they are hidden or optional** (today both are required) | Settings page is built; until the endpoint exists the switches are disabled and the form keeps both fields required |
-| **Auditor role + audit** (revised scope v2, client 26 Nov) | `Role: Auditor` in `Admin/user.php` and login. Auditors read visits like Clients (Approved only, no POC / Ground Team data). New `PUT Audit/audit.php` (Auditors only) `{ visit_id, status: Approved / Rejected, remark }`; **remark required when Rejected**; can be changed any time (latest wins, keep history if possible). Visits return `Audit_Status`, `Audit_Remark`, `Audited_By`, `Audited_AT` to **Admin, Client and Auditor only, never Staff** | Auditor login, audit card on the visit page (Approve / Reject + remark, editable), Audit column, filter and totals on Visits, audit columns in Excel; Admin and Client see it read only |
-| **Students covered** (client feedback 26 Nov) | Store `students_covered` (whole number, typed by the Ground Team for the session) on `POST Staff/visit.php`; return `Students_Covered` to Admin, Client and Auditor | Shown next to the AI count on the visit page and in the Excel/CSV export |
-| **Visit Start Timestamp** (revised scope v2) | Store `visit_started_at` (`YYYY-MM-DD HH:MM:SS`, IST) sent on `POST Staff/visit.php`; return it as `Visit_Started_AT` | When the Ground Team opened the visit form, kept apart from visit date and `Created_AT`. The app already sends it and shows "Form started" once returned |
-| **Photo limits** | **20 normal** and **10 AI** photos per visit (today `MAX_PHOTOS_PER_TYPE=10` for both) | App allows 20 normal; the server would reject photos 11–20 |
+| **Students covered** (client feedback 26 Nov) | **Not in v1.19.** Store `students_covered` (whole number, typed by the Ground Team for the session) on `POST Staff/visit.php`; return `Students_Covered` to Admin, Client and Auditor | Shown next to the AI count on the visit page and in the Excel/CSV export |
+| **Per-photo GPS** (Excel Photos sheet) | Not in v1.19. Accept each photo's own lat / lng / time (e.g. `normal_photos_gps` JSON in file order) and return `Latitude`, `Longitude`, `Taken_AT` per photo | Today the Excel Photos sheet uses the visit's GPS ("GPS from: Visit"); the exact spot is printed on every photo |
 | **Bulk approve** (optional) | Accept a list of `visit_id`s in one `PUT` | Approving hundreds sends one request each today |

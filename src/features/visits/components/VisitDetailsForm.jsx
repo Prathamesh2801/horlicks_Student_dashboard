@@ -36,8 +36,8 @@ function LocationBox({ geo, onRetry }) {
   )
 }
 
-// Step 1 of a visit: Date, City + District (server lists, cached for offline use), Village, UDISE, School name, School type,
-// Class category, POC name + contact number, GPS.
+// Step 1 of a visit: Date, City, District, Village, UDISE, School name, School type, Class category, POC name + contact,
+// GPS. Lists come from the server (cached for offline use); the Admin's settings hide fields or make them optional.
 export default function VisitDetailsForm({ onSubmit, submitting }) {
   const [form, setForm] = useState({
     date: todayISO(),
@@ -56,7 +56,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   const [cities, setCities] = useState([])
   const [districts, setDistricts] = useState([])
   const [citiesError, setCitiesError] = useState(null)
-  const [fields, setFields] = useState(DEFAULT_FORM) // admin: show / require POC name and Contact number
+  const [fields, setFields] = useState(DEFAULT_FORM) // admin settings: which fields are shown / required
   const geo = useGeolocation()
   const { locate } = geo
 
@@ -68,40 +68,46 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   }, [locate])
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
-  const contactValid = /^[6-9]\d{9}$/.test(form.pocContact)
-  const { poc, contact } = fields
-  // Hidden = not asked. Optional = may be left empty, but must be valid if filled.
-  const pocOk = !poc.show || form.pocName.trim().length >= 2 || (!poc.required && !form.pocName.trim())
-  const contactOk = !contact.show || contactValid || (!contact.required && !form.pocContact)
-  const udiseOk = /^\d{11}$/.test(form.udise) // UDISE+ school codes are 11 digits
   const digits = (key, n) => (e) => setForm((f) => ({ ...f, [key]: e.target.value.replace(/\D/g, '').slice(0, n) }))
+  const contactValid = /^[6-9]\d{9}$/.test(form.pocContact)
+  const udiseOk = /^\d{11}$/.test(form.udise) // UDISE+ school codes are 11 digits
+  // Admin settings (server visit_form.php): hidden = not asked; optional = may be empty, but valid if filled.
+  const shown = (name) => fields[name].show
+  const req = (name) => fields[name].show && fields[name].required
+  const ok = (name, filled, valid = true) => !shown(name) || (filled ? valid : !req(name))
   const ready =
     form.date &&
     form.city &&
-    form.district &&
-    form.village.trim().length >= 2 &&
-    udiseOk &&
     form.schoolName.trim().length >= 2 &&
-    form.schoolType &&
-    form.classCategory &&
-    pocOk &&
-    contactOk &&
+    ok('district', !!form.district) &&
+    ok('village', !!form.village.trim(), form.village.trim().length >= 2) &&
+    ok('udise', !!form.udise, udiseOk) &&
+    ok('school_type', !!form.schoolType) &&
+    ok('class_category', !!form.classCategory) &&
+    ok('poc_name', !!form.pocName.trim(), form.pocName.trim().length >= 2) &&
+    ok('poc_contact', !!form.pocContact, contactValid) &&
     geo.coords
+  const optional = (name, label) => (req(name) ? label : `${label} (optional)`)
 
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!ready) return
     const { lat, lng, accuracy } = geo.coords
+    const only = (name, v) => (shown(name) ? v : '')
     onSubmit({
       ...form,
-      village: form.village.trim(),
+      district: only('district', form.district),
+      village: only('village', form.village.trim()),
+      udise: only('udise', form.udise),
+      schoolType: only('school_type', form.schoolType),
+      classCategory: only('class_category', form.classCategory),
       schoolName: form.schoolName.trim(),
-      pocName: poc.show ? form.pocName.trim() : '',
-      pocContact: contact.show ? form.pocContact : '',
+      pocName: only('poc_name', form.pocName.trim()),
+      pocContact: only('poc_contact', form.pocContact),
       lat,
       lng,
       accuracy,
-      startedAt,
+      startedAt: shown('start_time') ? startedAt : null,
     })
   }
 
@@ -118,26 +124,40 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           options={cities.map((c) => ({ value: c, label: c }))}
           required
         />
-        <Select
-          label="District"
-          placeholder="Select district"
-          value={form.district}
-          onChange={set('district')}
-          options={districts.map((d) => ({ value: d, label: d }))}
-          required
-        />
-        <Input label="Village" value={form.village} onChange={set('village')} minLength={2} maxLength={100} autoComplete="off" required />
-        <Input
-          label="UDISE code"
-          inputMode="numeric"
-          placeholder="11-digit school code"
-          value={form.udise}
-          onChange={digits('udise', 11)}
-          maxLength={11}
-          autoComplete="off"
-          hint={form.udise && !udiseOk ? `${11 - form.udise.length} more digits` : undefined}
-          required
-        />
+        {shown('district') && (
+          <Select
+            label={optional('district', 'District')}
+            placeholder="Select district"
+            value={form.district}
+            onChange={set('district')}
+            options={districts.map((d) => ({ value: d, label: d }))}
+            required={req('district')}
+          />
+        )}
+        {shown('village') && (
+          <Input
+            label={optional('village', 'Village')}
+            value={form.village}
+            onChange={set('village')}
+            minLength={2}
+            maxLength={100}
+            autoComplete="off"
+            required={req('village')}
+          />
+        )}
+        {shown('udise') && (
+          <Input
+            label={optional('udise', 'UDISE code')}
+            inputMode="numeric"
+            placeholder="11-digit school code"
+            value={form.udise}
+            onChange={digits('udise', 11)}
+            maxLength={11}
+            autoComplete="off"
+            hint={form.udise && !udiseOk ? `${11 - form.udise.length} more digits` : undefined}
+            required={req('udise')}
+          />
+        )}
         <Input
           label="School name"
           placeholder="e.g. Govt. UP School, Patia"
@@ -148,38 +168,44 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           autoComplete="off"
           required
         />
-        <div className="grid grid-cols-2 gap-3">
-          <Select
-            label="School type"
-            placeholder="Select"
-            value={form.schoolType}
-            onChange={set('schoolType')}
-            options={SCHOOL_TYPES}
-            required
-          />
-          <Select
-            label="Class category"
-            placeholder="Select"
-            value={form.classCategory}
-            onChange={set('classCategory')}
-            options={CLASS_CATEGORIES}
-            required
-          />
-        </div>
-        {poc.show && (
+        {(shown('school_type') || shown('class_category')) && (
+          <div className="grid grid-cols-2 gap-3">
+            {shown('school_type') && (
+              <Select
+                label={optional('school_type', 'School type')}
+                placeholder="Select"
+                value={form.schoolType}
+                onChange={set('schoolType')}
+                options={SCHOOL_TYPES}
+                required={req('school_type')}
+              />
+            )}
+            {shown('class_category') && (
+              <Select
+                label={optional('class_category', 'Class category')}
+                placeholder="Select"
+                value={form.classCategory}
+                onChange={set('classCategory')}
+                options={CLASS_CATEGORIES}
+                required={req('class_category')}
+              />
+            )}
+          </div>
+        )}
+        {shown('poc_name') && (
           <Input
-            label={poc.required ? 'POC name' : 'POC name (optional)'}
+            label={optional('poc_name', 'POC name')}
             value={form.pocName}
             onChange={set('pocName')}
             minLength={2}
             maxLength={100}
             autoComplete="off"
-            required={poc.required}
+            required={req('poc_name')}
           />
         )}
-        {contact.show && (
+        {shown('poc_contact') && (
           <Input
-            label={contact.required ? 'Contact number' : 'Contact number (optional)'}
+            label={optional('poc_contact', 'Contact number')}
             type="tel"
             inputMode="numeric"
             placeholder="10-digit mobile number"
@@ -194,7 +220,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
                   : 'Mobile numbers start with 6, 7, 8 or 9'
                 : undefined
             }
-            required={contact.required}
+            required={req('poc_contact')}
           />
         )}
         <LocationBox geo={geo} onRetry={() => locate().catch(() => {})} />

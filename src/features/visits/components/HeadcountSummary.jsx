@@ -16,7 +16,7 @@ export default function HeadcountSummary({ visit }) {
           <MdGroups className="size-8" />
         </div>
         <div className="min-w-0" aria-live="polite">
-          <p className="text-sm text-white/85">Unique students (AI)</p>
+          <p className="text-sm text-white/85">{visit.headcountManual ? 'Unique students (corrected by Admin)' : 'Unique students (AI)'}</p>
           <p className="text-4xl font-bold leading-tight">{formatNumber(visit.headcount)}</p>
           <p className="text-xs text-white/75">
             {visit.aiCounting

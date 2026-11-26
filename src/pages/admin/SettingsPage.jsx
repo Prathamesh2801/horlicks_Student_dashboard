@@ -2,12 +2,14 @@ import { useState } from 'react'
 import PageHeader from '../../components/common/PageHeader'
 import { Button, Card, Spinner } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync'
-import { DEFAULT_FORM, getFormSettings, saveFormSettings } from '../../services/api/settings.service'
+import { getFormSettings, saveFormSettings, SWITCHABLE } from '../../services/api/settings.service'
+import { formatDateTime } from '../../utils/format'
 
-const FIELDS = [
-  ['poc', 'POC name', 'School point of contact'],
-  ['contact', 'Contact number', 'POC’s 10-digit mobile number'],
-]
+const HELP = {
+  poc_contact: 'POC’s 10-digit mobile number',
+  start_time: 'Recorded automatically when the form is opened',
+  udise: '11-digit school code',
+}
 
 function Switch({ checked, onChange, label, disabled }) {
   return (
@@ -26,25 +28,27 @@ function Switch({ checked, onChange, label, disabled }) {
   )
 }
 
-// Admin: which optional fields the Ground Team visit form shows, and whether each is required.
+// Admin: which fields the Ground Team visit form shows, and whether each is required (server: Admin/visit_form.php).
+// Date, city, school name, location and photos are always required.
 export default function SettingsPage() {
   const { data, error, reload } = useAsync(getFormSettings)
-  const [edit, setEdit] = useState(null) // changed, not saved
+  const [edits, setEdits] = useState({}) // field → { show, required } changed, not saved
   const [saving, setSaving] = useState(false)
   const [result, setResult] = useState(null) // 'saved' | error message
 
   if (!data && !error) return <Spinner className="mx-auto mt-10 size-6 text-brand-700" />
-  const form = edit ?? data?.form ?? DEFAULT_FORM
-  const onServer = data?.onServer
-  const set = (key, patch) => {
+  const offline = data?.offline
+  const value = (name) => edits[name] ?? data.form[name]
+  const set = (name, patch) => {
     setResult(null)
-    setEdit({ ...form, [key]: { ...form[key], ...patch } })
+    setEdits((e) => ({ ...e, [name]: { ...value(name), ...patch } }))
   }
+  const changed = Object.keys(edits).filter((n) => edits[n].show !== data.form[n].show || edits[n].required !== data.form[n].required)
   const save = async () => {
     setSaving(true)
     try {
-      await saveFormSettings(form)
-      setEdit(null)
+      await saveFormSettings(Object.fromEntries(changed.map((n) => [n, edits[n]])))
+      setEdits({})
       setResult('saved')
       reload()
     } catch (err) {
@@ -56,41 +60,44 @@ export default function SettingsPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Settings" subtitle="Choose which fields the Ground Team fills in on a new visit." />
-      {!onServer && (
+      {offline && (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-100">
-          These settings aren’t on the server yet, so the Ground Team form still shows both fields as required. The switches work as soon as
-          the server adds <code>Admin/settings.php</code>.
+          Couldn’t load the settings from the server. Check the connection and try again.
         </p>
       )}
       <Card className="divide-y divide-gray-100">
-        <h2 className="p-5 font-bold">Visit form fields</h2>
-        {FIELDS.map(([key, label, help]) => (
-          <div key={key} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
-            <div className="mr-auto">
-              <p className="font-semibold">{label}</p>
-              <p className="text-xs text-gray-500">{help}</p>
+        <div className="p-5">
+          <h2 className="font-bold">Visit form fields</h2>
+          <p className="text-xs text-gray-500">
+            Date, city, school name, location and photos are always required.
+            {data.updatedBy && ` Last changed by ${data.updatedBy} · ${formatDateTime(data.updatedAt)}.`}
+          </p>
+        </div>
+        {SWITCHABLE.map(([name, label]) => {
+          const f = value(name)
+          return (
+            <div key={name} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+              <div className="mr-auto">
+                <p className="font-semibold">{label}</p>
+                {HELP[name] && <p className="text-xs text-gray-500">{HELP[name]}</p>}
+              </div>
+              <Switch label={f.show ? 'Shown' : 'Hidden'} checked={f.show} onChange={(show) => set(name, { show })} disabled={offline} />
+              <Switch
+                label="Required"
+                checked={f.show && f.required}
+                onChange={(required) => set(name, { required })}
+                disabled={offline || !f.show}
+              />
             </div>
-            <Switch
-              label={form[key].show ? 'Shown' : 'Hidden'}
-              checked={form[key].show}
-              onChange={(show) => set(key, { show })}
-              disabled={!onServer}
-            />
-            <Switch
-              label="Required"
-              checked={form[key].show && form[key].required}
-              onChange={(required) => set(key, { required })}
-              disabled={!onServer || !form[key].show}
-            />
-          </div>
-        ))}
+          )
+        })}
         <div className="flex items-center justify-end gap-3 p-5">
           {result === 'saved' && (
             <span className="text-sm font-semibold text-green-700">Saved ✓ The Ground Team sees it on their next new visit.</span>
           )}
           {result && result !== 'saved' && <span className="text-sm text-accent-600">{result}</span>}
-          <Button onClick={save} loading={saving} disabled={!onServer || !edit}>
-            Save
+          <Button onClick={save} loading={saving} disabled={offline || !changed.length}>
+            Save {changed.length ? `${changed.length} change${changed.length === 1 ? '' : 's'}` : ''}
           </Button>
         </div>
       </Card>

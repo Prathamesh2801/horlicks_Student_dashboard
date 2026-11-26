@@ -3,6 +3,7 @@ import { MdCheck, MdClose } from 'react-icons/md'
 import { Badge, Button, Card } from '../../../components/ui'
 import { REVIEW } from '../../../constants/visit'
 import { reviewVisit } from '../../../services/api/visits.service'
+import { formatDateTime } from '../../../utils/format'
 
 // Admin: approve or reject a visit. Approved visits (with their headcount photos and the normal photos set to
 // "Show") are what the client sees.
@@ -31,6 +32,11 @@ export default function ReviewCard({ visit }) {
           ? 'The client can see this visit, its headcount photos and the normal photos set to “Show”.'
           : 'Approve to show this visit to the client. Its headcount photos and the normal photos set to “Show” go with it.'}
       </p>
+      {visit.reviewedBy && (
+        <p className="mt-1 text-xs text-gray-500">
+          Set by {visit.reviewedBy} · {formatDateTime(visit.reviewedAt)}
+        </p>
+      )}
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Button onClick={() => set('approved')} loading={busy === 'approved'} disabled={visit.review === 'approved'}>
           <MdCheck className="size-5" /> Approve

@@ -1,18 +1,25 @@
 import { api } from './client'
 
-// Server: Admin/settings.php (not on the server yet; contract in docs/SERVER_API.md → "Form settings").
-// Admin decides whether the POC name and Contact number fields are shown on the Ground Team form, and whether
-// each is required. Staff read it (cached on the phone for offline drafts).
-const SETTINGS = '/Admin/settings.php'
-const CACHE = 'form-settings'
+// Server: Admin/visit_form.php (v1.14). GET (Admin, Staff) describes the Create-visit form; PUT (Admin) switches
+// these fields between required, optional and hidden. Staff phones cache it for offline drafts.
+const FORM = '/Admin/visit_form.php'
+const CACHE = 'visit-form-settings'
 
-// Today's behaviour: both shown and required.
-export const DEFAULT_FORM = { poc: { show: true, required: true }, contact: { show: true, required: true } }
+// Fields an Admin can switch (server names), in form order.
+export const SWITCHABLE = [
+  ['district', 'District'],
+  ['village', 'Village'],
+  ['udise', 'UDISE code'],
+  ['school_type', 'School type'],
+  ['class_category', 'Class category'],
+  ['poc_name', 'POC name'],
+  ['poc_contact', 'Contact number'],
+  ['start_time', 'Visit start time'],
+]
 
-const fromServer = (d) => ({
-  poc: { show: d.Poc_Name_Show ?? true, required: d.Poc_Name_Required ?? true },
-  contact: { show: d.Poc_Contact_Show ?? true, required: d.Poc_Contact_Required ?? true },
-})
+// Server default: everything shown and required.
+export const DEFAULT_FORM = Object.fromEntries(SWITCHABLE.map(([name]) => [name, { show: true, required: true }]))
+
 const cached = () => {
   try {
     return JSON.parse(localStorage.getItem(CACHE)) ?? null
@@ -21,27 +28,27 @@ const cached = () => {
   }
 }
 
-// { form, onServer }. onServer = false while the endpoint doesn't exist (the defaults apply).
+// { form: { district: { show, required }, ... }, updatedBy, updatedAt }. Offline: the last copy, else the defaults.
 export async function getFormSettings() {
   try {
-    const form = fromServer((await api.get(SETTINGS)).Data ?? {})
+    const data = (await api.get(FORM)).Data
+    const byName = Object.fromEntries((data.Fields ?? []).map((f) => [f.Name, f]))
+    const form = Object.fromEntries(
+      SWITCHABLE.map(([name]) => [name, { show: byName[name]?.Show ?? true, required: byName[name]?.Required ?? true }]),
+    )
     try {
       localStorage.setItem(CACHE, JSON.stringify(form))
     } catch {
       // storage blocked
     }
-    return { form, onServer: true }
-  } catch (err) {
-    if (err.status === 404) return { form: DEFAULT_FORM, onServer: false }
-    return { form: cached() ?? DEFAULT_FORM, onServer: true } // offline: last known settings
+    return { form, updatedBy: data.Updated_By ?? null, updatedAt: data.Updated_AT ? data.Updated_AT.replace(' ', 'T') : null }
+  } catch {
+    return { form: cached() ?? DEFAULT_FORM, offline: true }
   }
 }
 
-export async function saveFormSettings({ poc, contact }) {
-  await api.put(SETTINGS, {
-    poc_name_show: poc.show,
-    poc_name_required: poc.show && poc.required,
-    poc_contact_show: contact.show,
-    poc_contact_required: contact.show && contact.required,
-  })
+// changes: { district: { show, required }, ... } (only what changed). Hidden also means not required.
+export async function saveFormSettings(changes) {
+  const fields = Object.fromEntries(Object.entries(changes).map(([name, f]) => [name, { show: f.show, required: f.show && f.required }]))
+  await api.put(FORM, { fields })
 }

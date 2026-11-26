@@ -69,7 +69,8 @@ export const REVIEW_FILTERS = Object.entries(REVIEW).map(([value, r]) => ({ valu
 
 // Visit form dropdowns (revised scope v2, confirmed by the client 26 Nov).
 export const SCHOOL_TYPES = ['Government', 'Private'].map((v) => ({ value: v, label: v }))
-export const CLASS_CATEGORIES = ['1–3', '4–6', '7–9'].map((v) => ({ value: v, label: v }))
+// The server stores the code (1, 2, 3).
+export const CLASS_CATEGORIES = ['1–3', '4–6', '7–9'].map((label, i) => ({ value: String(i + 1), label }))
 
 // Districts sent by the client (26 Nov). The form uses the server's list (Districts) and falls back to this one.
 // prettier-ignore

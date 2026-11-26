@@ -6,6 +6,7 @@ import { formatCoords, formatDate, formatDateTime, mapUrl } from '../../../utils
 import HeadcountSummary from './HeadcountSummary'
 import PhotoGrid from './PhotoGrid'
 import AuditCard from './AuditCard'
+import CountCorrection from './CountCorrection'
 import ReviewCard from './ReviewCard'
 import { useState } from 'react'
 import { Button } from '../../../components/ui'
@@ -115,7 +116,7 @@ export default function VisitDetail({ visit, admin }) {
           </Row>
         )}
         <Row label="Ground Team">{visit.staffName}</Row>
-        {visit.startedAt && <Row label="Form started">{formatDateTime(visit.startedAt)}</Row>}
+        {visit.startTime && <Row label="Visit started">{visit.startTime}</Row>}
         <Row label="Submitted">{formatDateTime(visit.submittedAt)}</Row>
         {admin ? (
           <Row label="Photos">
@@ -188,7 +189,10 @@ export default function VisitDetail({ visit, admin }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="min-w-0 space-y-6">
-        <HeadcountSummary visit={visit} />
+        <div className="space-y-2">
+          <HeadcountSummary visit={visit} />
+          <CountCorrection visit={visit} />
+        </div>
         {headSection}
         {normalSection}
       </div>

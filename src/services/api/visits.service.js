@@ -1,5 +1,5 @@
 import { api, fileUrl } from './client'
-import { DISTRICTS } from '../../constants/visit'
+import { CLASS_CATEGORIES, DISTRICTS } from '../../constants/visit'
 import { notifyChange } from './pending.service'
 
 // Server: Staff/visit.php (see docs/SERVER_API.md → Staff · Visits)
@@ -13,15 +13,15 @@ const REVIEW_FROM = { Pending: 'waiting', Approved: 'approved', Rejected: 'rejec
 const REVIEW_TO = { waiting: 'Pending', approved: 'Approved', rejected: 'Rejected' }
 // AI photo: counted later by the server's worker (Pending → Working → Done, or Failed after retries)
 const AI_FROM = { Done: 'done', Failed: 'failed' }
-// Audit (revised scope v2): server Audit_Status Approved / Rejected ↔ app approved / rejected
-const AUDIT_FROM = { Approved: 'approved', Rejected: 'rejected' }
-const AUDIT_TO = { approved: 'Approved', rejected: 'Rejected' }
-const AUDITS = '/Audit/audit.php'
+// Audit (server v1.18): Is_Audit_Pass true / false / null ↔ app approved / rejected / not audited
+const COUNTS = '/Admin/visit_count.php' // admin correction of the unique student count (v1.19)
+// Class category: the server stores 1, 2, 3; the client calls them 1–3, 4–6, 7–9.
+const classLabel = (n) => CLASS_CATEGORIES.find((c) => c.value === String(n))?.label ?? (n == null ? null : String(n))
+// Photo category → its upload key ("Sample Distribution" → sample_distribution), as in the server's Options.Photo_Category_Keys
+const categoryKey = (c) => c.toLowerCase().replace(/ /g, '_')
 
 // "2026-11-17 11:45:10" (server time, IST) → "2026-11-17T11:45:10"
 const toDate = (s) => (s ? s.replace(' ', 'T') : null)
-// ISO time → "2026-11-17 11:45:10" in IST (the server's format)
-const serverTime = (iso) => new Date(iso).toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' })
 
 // Server visit → app visit (same shape the pages already use)
 function toVisit(v) {
@@ -53,22 +53,23 @@ function toVisit(v) {
     district: v.District ?? null,
     cityName: v.City,
     schoolName: v.School_Name,
-    village: v.Village ?? null, // revised scope v2: null until the server stores them
-    udise: v.UDISE_Code ?? null,
+    village: v.Village ?? null,
+    udise: v.UDISE ?? null,
     schoolType: v.School_Type ?? null,
-    classCategory: v.Class_Category ?? null,
+    classCategory: classLabel(v.Class_Category),
     pocName: v.POC_Name ?? null, // school point of contact (never sent to clients)
     pocContact: v.POC_Contact ?? null,
     staffId: v.Username,
     staffName: v.Staff_Name,
     lat: v.Latitude == null ? null : Number(v.Latitude),
     lng: v.Longitude == null ? null : Number(v.Longitude),
-    startedAt: toDate(v.Visit_Started_AT), // when the Ground Team opened the visit form (null until the server stores it)
+    startTime: v.Start_Time ?? null, // HH:MM when the Ground Team opened the visit form
     submittedAt: toDate(v.Created_AT),
     photos: [...normal, ...ai],
     photoCount: normal.length + ai.length,
     // Main number: each child once, even when they're in several class photos (older visits: face total).
     headcount: v.Unique_Person_Count ?? v.Total_Face_Count ?? null,
+    headcountManual: Boolean(v.Unique_Count_Manual), // an admin corrected the AI's number
     studentsCovered: v.Students_Covered ?? null, // typed by the Ground Team for the session (null until the server stores it)
     facesSeen: v.Total_Face_Count ?? null, // faces in all AI photos added up, repeats included
     aiFailed: ai.filter((p) => p.ai.status === 'failed').length,
@@ -76,15 +77,23 @@ function toVisit(v) {
     aiError: v.AI_Error ?? null, // last counting problem (admins only)
     status: 'completed',
     review: REVIEW_FROM[v.Status] ?? 'waiting', // admin review: waiting | approved | rejected
+    reviewedBy: v.Status_Updated_By ?? null,
+    reviewedAt: toDate(v.Status_Updated_AT),
     // Auditor's verdict (null = not audited). Never sent to the Ground Team.
-    audit: AUDIT_FROM[v.Audit_Status]
-      ? { status: AUDIT_FROM[v.Audit_Status], remark: v.Audit_Remark ?? '', by: v.Audited_By ?? null, at: toDate(v.Audited_AT) }
-      : null,
+    audit:
+      v.Is_Audit_Pass == null
+        ? null
+        : {
+            status: v.Is_Audit_Pass ? 'approved' : 'rejected',
+            remark: v.Auditor_Comment ?? '',
+            by: v.Audit_Updated_By ?? null, // only Admin and Auditor get who audited
+            at: toDate(v.Audit_Updated_AT),
+          },
   }
 }
 
 // ---- dropdown lists from the server (kept on the device for offline drafts) ----
-// The visit list response carries Cities (and Districts once the server adds them).
+// The visit list response carries Cities and Options (Districts, Class_Categories, School_Types, Photo_Categories).
 const remember = (key, list) => {
   try {
     localStorage.setItem(key, JSON.stringify(list))
@@ -113,9 +122,9 @@ async function serverList(key, read) {
 }
 
 export const getCities = () => serverList('cities-cache', (d) => names(d.Cities, 'City'))
-// Until the server sends Districts, use the client's list.
+// Offline with nothing cached: the client's list.
 export const getDistricts = () =>
-  serverList('districts-cache', (d) => names(d.Districts, 'District')).then(
+  serverList('districts-cache', (d) => d.Options?.Districts ?? []).then(
     (l) => (l.length ? l : DISTRICTS),
     () => cached('districts-cache') ?? DISTRICTS,
   )
@@ -174,32 +183,32 @@ export async function createVisit(
   const form = new FormData()
   form.append('visit_date', date)
   form.append('city', city)
-  if (district) form.append('district', district)
   form.append('school_name', schoolName)
-  // Revised scope v2 (older drafts may not have them)
-  if (village) form.append('village', village)
-  if (udise) form.append('udise_code', udise)
-  if (schoolType) form.append('school_type', schoolType)
-  if (classCategory) form.append('class_category', classCategory)
-  if (pocName) form.append('poc_name', pocName)
-  if (pocContact) form.append('poc_contact', pocContact)
   form.append('latitude', String(lat))
   form.append('longitude', String(lng))
-  if (startedAt) form.append('visit_started_at', serverTime(startedAt))
-  if (studentsCovered) form.append('students_covered', String(studentsCovered))
-  normalPhotos.forEach((blob, i) => form.append('normal_photos[]', blob, `normal-${i + 1}.jpg`))
-  aiPhotos.forEach((blob, i) => form.append('ai_photos[]', blob, `headcount-${i + 1}.jpg`))
-  // Each photo's own GPS, time and category, in the same order as the files (JSON).
-  const meta = (type) =>
-    JSON.stringify(
-      (photos ?? [])
-        .filter((p) => p.type === type)
-        .map((p) => ({ lat: p.lat, lng: p.lng, taken_at: p.takenAt && serverTime(p.takenAt), category: p.category ?? null })),
-    )
-  if (photos?.length) {
-    form.append('normal_photos_gps', meta('normal'))
-    form.append('ai_photos_gps', meta('headcount'))
+  // Fields the Admin can hide or make optional (visit_form.php): sent only when filled.
+  const optional = {
+    district,
+    village,
+    udise,
+    school_type: schoolType,
+    class_category: CLASS_CATEGORIES.find((c) => c.label === classCategory)?.value ?? classCategory, // 1–3 → 1
+    poc_name: pocName,
+    poc_contact: pocContact,
+    start_time:
+      startedAt && new Date(startedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }),
   }
+  Object.entries(optional).forEach(([k, v]) => v && form.append(k, v))
+  // ponytail: not on the server yet (docs/SERVER_API.md → Still needed); the server ignores it until then.
+  if (studentsCovered) form.append('students_covered', String(studentsCovered))
+  // Normal photos go under their category: normal_photos[reporting][] … (same order as the draft's photos).
+  const normalMeta = (photos ?? []).filter((p) => p.type === 'normal')
+  normalPhotos.forEach((blob, i) => {
+    // Drafts from before categories have none; they go under Activity.
+    const key = categoryKey(normalMeta[i]?.category ?? 'Activity')
+    form.append(`normal_photos[${key}][]`, blob, `${key}-${i + 1}.jpg`)
+  })
+  aiPhotos.forEach((blob, i) => form.append('ai_photos[]', blob, `headcount-${i + 1}.jpg`))
   const data = await api.post(VISITS, form, {
     timeout: 15 * 60 * 1000, // slow mobile uploads of up to 30 photos
     onUploadProgress: (e) => e.total && onProgress?.(e.loaded / e.total),
@@ -242,9 +251,31 @@ export async function retryAiCount(visitId) {
   notifyChange()
 }
 
-// ---- audit (Auditor role) ----
-// Approve or reject a visit; a remark is required to reject. Can be changed any time (latest wins).
+// ---- audit (Auditor role, server v1.18: PUT Staff/visit.php, Auditors only) ----
+// Approve (pass) or reject (fail) an Approved visit with a comment; any Auditor can change it later (latest wins).
 export async function saveAudit(visitId, status, remark) {
-  await api.put(AUDITS, { visit_id: Number(visitId), status: AUDIT_TO[status], remark })
+  await api.put(VISITS, { visit_id: Number(visitId), is_audit_pass: status === 'approved', auditor_comment: remark })
+  notifyChange()
+}
+
+// ---- unique student count correction (Admin, server v1.19) ----
+const toCountChange = (c) => ({
+  id: c.Change_ID,
+  from: c.From,
+  to: c.To,
+  reason: c.Reason ?? '',
+  by: c.Changed_By,
+  at: toDate(c.Changed_AT),
+})
+
+// History of corrections, newest first.
+export async function getCountHistory(visitId) {
+  const data = await api.get(COUNTS, { params: { visit_id: visitId } })
+  return (data.Data?.History ?? []).map(toCountChange)
+}
+
+// Replace the AI's unique student count (the AI worker keeps it; "Count again" replaces it).
+export async function correctCount(visitId, count, reason) {
+  await api.put(COUNTS, { visit_id: Number(visitId), unique_person_count: Number(count), reason: reason || undefined })
   notifyChange()
 }
