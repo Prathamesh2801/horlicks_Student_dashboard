@@ -2,7 +2,7 @@ import { SortHeader } from '../../../components/table'
 import { Avatar, Badge } from '../../../components/ui'
 import { formatDate } from '../../../utils/format'
 
-const avatarTone = (u) => ({ admin: 'bg-brand-100 text-brand-700', client: 'bg-purple-100 text-purple-700' })[u.role] ?? 'bg-amber-100 text-amber-800'
+const avatarTone = (u) => ({ admin: 'bg-brand-100 text-brand-700', client: 'bg-purple-100 text-purple-700', auditor: 'bg-green-100 text-green-700' })[u.role] ?? 'bg-amber-100 text-amber-800'
 
 function Actions({ user, isMe, onToggleActive, onResetPassword }) {
   return (
@@ -23,7 +23,7 @@ function Actions({ user, isMe, onToggleActive, onResetPassword }) {
   )
 }
 
-const ROLE_BADGE = { admin: ['brand', 'Admin'], client: ['purple', 'Client'], staff: ['gray', 'Ground Team'] }
+const ROLE_BADGE = { admin: ['brand', 'Admin'], client: ['purple', 'Client'], auditor: ['green', 'Auditor'], staff: ['gray', 'Ground Team'] }
 const RoleBadge = ({ role }) => {
   const [tone, label] = ROLE_BADGE[role] ?? ROLE_BADGE.staff
   return <Badge tone={tone}>{label}</Badge>

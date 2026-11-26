@@ -13,6 +13,7 @@ const ROLE_FILTERS = [
   { value: 'admin', label: 'Admins' },
   { value: 'staff', label: 'Ground Team' },
   { value: 'client', label: 'Clients' },
+  { value: 'auditor', label: 'Auditors' },
 ]
 const STATUS_FILTERS = [
   { value: 'active', label: 'Active' },

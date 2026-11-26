@@ -44,6 +44,19 @@ export const ROLES = [
   { value: 'staff', label: 'Ground Team' },
   { value: 'admin', label: 'Admin' },
   { value: 'client', label: 'Client' },
+  { value: 'auditor', label: 'Auditor' },
+]
+
+// Audit of a visit by an Auditor (seen by Admin, Client, Auditors; never the Ground Team).
+export const AUDIT = {
+  approved: { label: 'Audit approved', tone: 'green' },
+  rejected: { label: 'Audit rejected', tone: 'red' },
+  none: { label: 'Not audited', tone: 'gray' },
+}
+export const AUDIT_FILTERS = [
+  { value: 'none', label: 'Not audited' },
+  { value: 'approved', label: 'Audit approved' },
+  { value: 'rejected', label: 'Audit rejected' },
 ]
 
 // Admin review of an uploaded visit. Only approved visits reach the client and report links.

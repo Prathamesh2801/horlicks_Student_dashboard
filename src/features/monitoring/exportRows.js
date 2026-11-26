@@ -1,14 +1,14 @@
-import { REVIEW } from '../../constants/visit'
+import { AUDIT, REVIEW } from '../../constants/visit'
 
 // Excel / CSV rows ([header, ...rows]) for the Visits and Reports pages.
 
 export const visitRows = (visits) => [
   // prettier-ignore
   ['Visit ID', 'Date', 'School', 'District', 'City', 'Village', 'UDISE code', 'School type', 'Class category', 'Ground Team', 'POC name', 'POC contact',
-    'Review', 'Photos', 'Students covered (entered)', 'Unique students (AI)', 'Faces (incl. repeats)', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
+    'Review', 'Audit', 'Audit remark', 'Audited by', 'Audited at', 'Photos', 'Students covered (entered)', 'Unique students (AI)', 'Faces (incl. repeats)', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
   ...visits.map((v) => [
     v.id, v.date, v.schoolName, v.district, v.cityName, v.village, v.udise, v.schoolType, v.classCategory, v.staffName, v.pocName, v.pocContact,
-    REVIEW[v.review]?.label, v.photoCount, v.studentsCovered, v.headcount, v.facesSeen, v.aiFailed, v.lat, v.lng, v.submittedAt,
+    REVIEW[v.review]?.label, AUDIT[v.audit?.status ?? 'none'].label, v.audit?.remark, v.audit?.by, v.audit?.at, v.photoCount, v.studentsCovered, v.headcount, v.facesSeen, v.aiFailed, v.lat, v.lng, v.submittedAt,
   ]),
 ]
 

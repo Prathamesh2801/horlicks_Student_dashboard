@@ -51,7 +51,7 @@ function Sidebar({ onNavigate, area }) {
       <div className="mb-8 px-2">
         <Logo className="h-12 w-auto" />
         <p className="mt-3 font-bold text-brand-700">School Activity</p>
-        <p className="text-xs text-gray-500">{area.area}</p>
+        <p className="text-xs text-gray-500">{user.role === 'auditor' ? 'Auditor view' : area.area}</p>
       </div>
       <nav className="flex flex-col gap-1">
         {area.nav.map(({ to, label, icon: Icon, end }) => (
@@ -96,7 +96,7 @@ function Sidebar({ onNavigate, area }) {
         <Avatar name={user.name} className="bg-sun-400 text-brand-900" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{user.name}</p>
-          <p className="text-xs text-gray-500">{area.role}</p>
+          <p className="text-xs text-gray-500">{user.role === 'auditor' ? 'Auditor' : area.role}</p>
         </div>
         <button onClick={logout} className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-200" aria-label="Log out" title="Log out">
           <MdLogout className="size-5" />

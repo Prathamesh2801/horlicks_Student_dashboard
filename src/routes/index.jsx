@@ -57,10 +57,10 @@ export const router = createHashRouter([
     ],
   },
   {
-    // Read-only client view; admins can open it as a preview.
+    // Client view (read only); Auditors use it to audit visits; admins can open it as a preview.
     path: '/client',
     element: (
-      <RequireRole role={['client', 'admin']}>
+      <RequireRole role={['client', 'auditor', 'admin']}>
         <ClientLayout />
       </RequireRole>
     ),

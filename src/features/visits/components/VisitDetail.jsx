@@ -5,6 +5,7 @@ import { Card } from '../../../components/ui'
 import { formatCoords, formatDate, formatDateTime, mapUrl } from '../../../utils/format'
 import HeadcountSummary from './HeadcountSummary'
 import PhotoGrid from './PhotoGrid'
+import AuditCard from './AuditCard'
 import ReviewCard from './ReviewCard'
 import { useState } from 'react'
 import { Button } from '../../../components/ui'
@@ -193,6 +194,7 @@ export default function VisitDetail({ visit, admin }) {
       </div>
       <div className="space-y-6">
         <ReviewCard visit={visit} />
+        <AuditCard visit={visit} />
         {details}
         <LocationCard visit={visit} />
       </div>

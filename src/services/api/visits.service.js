@@ -13,6 +13,10 @@ const REVIEW_FROM = { Pending: 'waiting', Approved: 'approved', Rejected: 'rejec
 const REVIEW_TO = { waiting: 'Pending', approved: 'Approved', rejected: 'Rejected' }
 // AI photo: counted later by the server's worker (Pending → Working → Done, or Failed after retries)
 const AI_FROM = { Done: 'done', Failed: 'failed' }
+// Audit (revised scope v2): server Audit_Status Approved / Rejected ↔ app approved / rejected
+const AUDIT_FROM = { Approved: 'approved', Rejected: 'rejected' }
+const AUDIT_TO = { approved: 'Approved', rejected: 'Rejected' }
+const AUDITS = '/Audit/audit.php'
 
 // "2026-11-17 11:45:10" (server time, IST) → "2026-11-17T11:45:10"
 const toDate = (s) => (s ? s.replace(' ', 'T') : null)
@@ -72,6 +76,10 @@ function toVisit(v) {
     aiError: v.AI_Error ?? null, // last counting problem (admins only)
     status: 'completed',
     review: REVIEW_FROM[v.Status] ?? 'waiting', // admin review: waiting | approved | rejected
+    // Auditor's verdict (null = not audited). Never sent to the Ground Team.
+    audit: AUDIT_FROM[v.Audit_Status]
+      ? { status: AUDIT_FROM[v.Audit_Status], remark: v.Audit_Remark ?? '', by: v.Audited_By ?? null, at: toDate(v.Audited_AT) }
+      : null,
   }
 }
 
@@ -231,5 +239,12 @@ export async function setClientPhotos(visitId, showIds, bestIds) {
 // AI count failed after the server's retries: queue it again.
 export async function retryAiCount(visitId) {
   await api.put(VISITS, { visit_id: Number(visitId), retry_ai_count: true })
+  notifyChange()
+}
+
+// ---- audit (Auditor role) ----
+// Approve or reject a visit; a remark is required to reject. Can be changed any time (latest wins).
+export async function saveAudit(visitId, status, remark) {
+  await api.put(AUDITS, { visit_id: Number(visitId), status: AUDIT_TO[status], remark })
   notifyChange()
 }

@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { MdLock, MdPerson, MdVisibility } from 'react-icons/md'
+import { MdFactCheck, MdLock, MdPerson, MdVisibility } from 'react-icons/md'
 import { Button, Input } from '../../../components/ui'
 import { ROLES } from '../../../constants/visit'
 
-const ROLE_ICON = { staff: MdPerson, admin: MdLock, client: MdVisibility }
+const ROLE_ICON = { staff: MdPerson, admin: MdLock, client: MdVisibility, auditor: MdFactCheck }
 const ROLE_HINT = {
   staff: 'The Ground Team uses the phone app to record school visits.',
   admin: 'Admins use this dashboard.',
   client: 'Clients get the read-only client view: approved data only, no users or Ground Team data.',
+  auditor: 'Auditors see the client view and approve or reject each visit with a remark.',
 }
 
 export default function UserForm({ onSubmit, onCancel }) {
@@ -58,7 +59,7 @@ export default function UserForm({ onSubmit, onCancel }) {
       />
       <div>
         <p className="mb-1.5 text-sm font-semibold text-gray-800">Role</p>
-        <div role="radiogroup" aria-label="Role" className="grid grid-cols-3 gap-1 rounded-xl bg-gray-100 p-1">
+        <div role="radiogroup" aria-label="Role" className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 sm:grid-cols-4">
           {ROLES.map((r) => {
             const Icon = ROLE_ICON[r.value]
             const active = form.role === r.value

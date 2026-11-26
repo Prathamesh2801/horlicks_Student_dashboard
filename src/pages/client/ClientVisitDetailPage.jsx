@@ -5,15 +5,17 @@ import { MdGroups, MdLocationOn, MdPhotoLibrary } from 'react-icons/md'
 import PageHeader from '../../components/common/PageHeader'
 import { Card, EmptyState, Spinner } from '../../components/ui'
 import { clientVisitPhotos, PhotoGallery } from '../../features/monitoring'
-import { useVisit } from '../../features/visits'
+import { useAuth } from '../../features/auth'
+import { AuditCard, useVisit } from '../../features/visits'
 import { formatDate, formatNumber } from '../../utils/format'
 
 // One school visit for the client: students reached, location and the photos shared with them (★ Best first).
-// Never shown: Ground Team name, POC, faces incl. repeats, AI or review details.
+// Never shown: Ground Team name, POC, faces incl. repeats, AI or review details. Auditors also audit the visit here.
 export default function ClientVisitDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { visit, error } = useVisit(id)
+  const { user } = useAuth()
   const back = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/client/visits'))
 
   if (error) return <EmptyState title="Couldn’t load this visit" text={error} />
@@ -72,6 +74,7 @@ export default function ClientVisitDetailPage() {
           </Card>
         )}
       </div>
+      <AuditCard visit={visit} canEdit={user.role === 'auditor'} />
       <section>
         <h2 className="mb-3 text-lg font-bold">Photos</h2>
         <PhotoGallery photos={photos} inVisit />

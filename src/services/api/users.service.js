@@ -4,7 +4,7 @@ import { api } from './client'
 const USERS = '/Admin/user.php'
 
 // 'Client' = read-only client view (server: role not added yet, see docs/SERVER_API.md)
-const toServerRole = (role) => ({ admin: 'Admin', client: 'Client' })[role] ?? 'Staff'
+const toServerRole = (role) => ({ admin: 'Admin', client: 'Client', auditor: 'Auditor' })[role] ?? 'Staff'
 // "2026-11-17 11:20:05" (server time, IST) → "2026-11-17T11:20:05"
 const toDate = (s) => (s ? s.replace(' ', 'T') : null)
 
