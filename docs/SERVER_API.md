@@ -1,6 +1,6 @@
 # Server API reference: Horlicks School Tribes API
 
-> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.11.0**; what changed and what's still needed is at the end ("Connected in the app").
+> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.12.0**; what changed and what's still needed is at the end ("Connected in the app").
 > Live, always-current version: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 > (it also has a *Try it* console). If this copy and the live page differ, **the live page wins**: update this file.
 
@@ -455,7 +455,7 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 - [x] ~~Excel / PPT export~~: Excel and CSV are made in the browser; reports are shared as links (no PDF / PPT).
 - [ ] Production: **HTTPS** + public domain for the API (needed for installing the app and for phones on mobile data).
 
-### Connected in the app (server v1.11.0, 25 Nov 2026)
+### Connected in the app (server v1.12.0, 25 Nov 2026)
 
 | Feature | Server | App |
 |---|---|---|
@@ -466,12 +466,13 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 | City targets | `Admin/target.php` GET / POST / PUT / DELETE, per-city start and finish dates; the server computes progress and status. Clients read only (v1.11) | Target page, dashboard and client target cards |
 | ★ Best photo (v1.11) | `best_normal_photo_ids` on `PUT Staff/visit.php`; photos return `Is_Best` | ★ on each normal photo; Best first for the client |
 | Background AI count (v1.10) | `AI_Count_Status` Pending / Working / Done / Failed, `AI_Error`; `retry_ai_count` on PUT | "Counting…" in lists and visit page (refreshes every 15 s), "AI counting" filter, **Count again** button with the reason when it failed |
+| PDF reports (v1.12) | `POST Report/report.php` `{ visit_ids }` (max 50) → worker → `GET ?report_id=` Pending / Working / Done / Failed with `Pdf_Url` (no login needed); `GET` lists; `PUT { report_id, retry }` | Reports page: choose visits → Generate PDF (checks every 3 s) → **Open PDF** / **Copy link**; Generated reports list with Try again |
 
 ### Still needed from the server (for this app)
 
 | Feature | Request | Why |
 |---|---|---|
-| **Report PDF** | `POST Admin/report.php` `{ title, filters: { date_from, date_to, city, username, ai } }` **or** `{ title, visit_ids: [...] }` → `{ Report_ID, Status: processing/ready/failed, Download_Url? }`. `GET Admin/report.php?report_id=` → same + `Visit_Count`, `Photo_Count`, `Error`. `GET Admin/report.php` → list (`Title`, `Period`, counts, `Created_AT`, `Download_Url`). Approved visits only; ★ Best photos first, capped (e.g. 50 photos). Download link needs the admin token or is short-lived signed | Reports page is built and waiting: it shows “not available on the server yet” until this exists ([`reports.service.js`](../src/services/api/reports.service.js)) |
+| **Client-safe PDF made by an Admin** | e.g. `"audience": "Client"` on `POST Report/report.php`: build the PDF as a Client would see it (Approved visits only, approved photos only, no POC / phone) | Today the PDF follows the requester's role, so an admin's PDF (the one shared with the client) contains every POC phone number and the photos the admin chose **not** to show |
 | **Targets count** | Consider counting only **Approved** visits (today Pending counts too) | The client sees approved visits only, so their numbers and the target can differ |
 | **Photo limits** | **20 normal** and **10 AI** photos per visit (today `MAX_PHOTOS_PER_TYPE=10` for both) | App allows 20 normal; the server would reject photos 11–20 |
 | **Bulk approve** (optional) | Accept a list of `visit_id`s in one `PUT` | Approving hundreds sends one request each today |
