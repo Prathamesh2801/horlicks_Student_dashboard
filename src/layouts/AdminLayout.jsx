@@ -11,6 +11,7 @@ import {
   MdMap,
   MdMenu,
   MdPerson,
+  MdSettings,
   MdVisibility,
 } from 'react-icons/md'
 import Logo from '../components/common/Logo'
@@ -28,6 +29,7 @@ const ADMIN = {
     { to: '/admin/map', label: 'Map', icon: MdMap },
     { to: '/admin/target', label: 'Target', icon: MdFlag },
     { to: '/admin/reports', label: 'Reports', icon: MdLink },
+    { to: '/admin/settings', label: 'Settings', icon: MdSettings },
   ],
 }
 // Read-only client view (also opened by admins as a preview).

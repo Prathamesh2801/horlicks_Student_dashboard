@@ -4,6 +4,7 @@ import BottomBar from '../../../components/common/BottomBar'
 import { Button, Card, Input, Select, Spinner } from '../../../components/ui'
 import { useGeolocation } from '../../../hooks/useGeolocation'
 import { CLASS_CATEGORIES, SCHOOL_TYPES } from '../../../constants/visit'
+import { DEFAULT_FORM, getFormSettings } from '../../../services/api/settings.service'
 import { getCities, getDistricts } from '../../../services/api/visits.service'
 import { formatCoords, formatTime, todayISO } from '../../../utils/format'
 
@@ -55,17 +56,23 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   const [cities, setCities] = useState([])
   const [districts, setDistricts] = useState([])
   const [citiesError, setCitiesError] = useState(null)
+  const [fields, setFields] = useState(DEFAULT_FORM) // admin: show / require POC name and Contact number
   const geo = useGeolocation()
   const { locate } = geo
 
   useEffect(() => {
     getCities().then(setCities, (e) => setCitiesError(e.message))
     getDistricts().then(setDistricts)
+    getFormSettings().then((r) => setFields(r.form))
     locate().catch(() => {})
   }, [locate])
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
-  const contactOk = /^[6-9]\d{9}$/.test(form.pocContact)
+  const contactValid = /^[6-9]\d{9}$/.test(form.pocContact)
+  const { poc, contact } = fields
+  // Hidden = not asked. Optional = may be left empty, but must be valid if filled.
+  const pocOk = !poc.show || form.pocName.trim().length >= 2 || (!poc.required && !form.pocName.trim())
+  const contactOk = !contact.show || contactValid || (!contact.required && !form.pocContact)
   const udiseOk = /^\d{11}$/.test(form.udise) // UDISE+ school codes are 11 digits
   const digits = (key, n) => (e) => setForm((f) => ({ ...f, [key]: e.target.value.replace(/\D/g, '').slice(0, n) }))
   const ready =
@@ -77,7 +84,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
     form.schoolName.trim().length >= 2 &&
     form.schoolType &&
     form.classCategory &&
-    form.pocName.trim().length >= 2 &&
+    pocOk &&
     contactOk &&
     geo.coords
 
@@ -89,7 +96,8 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
       ...form,
       village: form.village.trim(),
       schoolName: form.schoolName.trim(),
-      pocName: form.pocName.trim(),
+      pocName: poc.show ? form.pocName.trim() : '',
+      pocContact: contact.show ? form.pocContact : '',
       lat,
       lng,
       accuracy,
@@ -158,25 +166,37 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
             required
           />
         </div>
-        <Input label="POC name" value={form.pocName} onChange={set('pocName')} minLength={2} maxLength={100} autoComplete="off" required />
-        <Input
-          label="Contact number"
-          type="tel"
-          inputMode="numeric"
-          placeholder="10-digit mobile number"
-          value={form.pocContact}
-          onChange={digits('pocContact', 10)}
-          maxLength={10}
-          autoComplete="off"
-          hint={
-            form.pocContact && !contactOk
-              ? form.pocContact.length < 10
-                ? `${10 - form.pocContact.length} more digits`
-                : 'Mobile numbers start with 6, 7, 8 or 9'
-              : undefined
-          }
-          required
-        />
+        {poc.show && (
+          <Input
+            label={poc.required ? 'POC name' : 'POC name (optional)'}
+            value={form.pocName}
+            onChange={set('pocName')}
+            minLength={2}
+            maxLength={100}
+            autoComplete="off"
+            required={poc.required}
+          />
+        )}
+        {contact.show && (
+          <Input
+            label={contact.required ? 'Contact number' : 'Contact number (optional)'}
+            type="tel"
+            inputMode="numeric"
+            placeholder="10-digit mobile number"
+            value={form.pocContact}
+            onChange={digits('pocContact', 10)}
+            maxLength={10}
+            autoComplete="off"
+            hint={
+              form.pocContact && !contactValid
+                ? form.pocContact.length < 10
+                  ? `${10 - form.pocContact.length} more digits`
+                  : 'Mobile numbers start with 6, 7, 8 or 9'
+                : undefined
+            }
+            required={contact.required}
+          />
+        )}
         <LocationBox geo={geo} onRetry={() => locate().catch(() => {})} />
         <p className="text-xs text-gray-500">Location and time are saved automatically and can’t be typed in.</p>
       </Card>

@@ -11,6 +11,7 @@ import ClientVisitsPage from '../pages/client/ClientVisitsPage'
 import DashboardPage from '../pages/admin/DashboardPage'
 import MapPage from '../pages/admin/MapPage'
 import ReportsPage from '../pages/admin/ReportsPage'
+import SettingsPage from '../pages/admin/SettingsPage'
 import TargetPage from '../pages/admin/TargetPage'
 import UsersPage from '../pages/admin/UsersPage'
 import VisitDetailPage from '../pages/admin/VisitDetailPage'
@@ -52,6 +53,7 @@ export const router = createHashRouter([
       { path: 'users', element: <UsersPage /> },
       { path: 'target', element: <TargetPage /> },
       { path: 'reports', element: <ReportsPage /> },
+      { path: 'settings', element: <SettingsPage /> },
     ],
   },
   {

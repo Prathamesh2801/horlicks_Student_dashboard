@@ -181,10 +181,12 @@ export async function createVisit(
   if (studentsCovered) form.append('students_covered', String(studentsCovered))
   normalPhotos.forEach((blob, i) => form.append('normal_photos[]', blob, `normal-${i + 1}.jpg`))
   aiPhotos.forEach((blob, i) => form.append('ai_photos[]', blob, `headcount-${i + 1}.jpg`))
-  // Each photo's own GPS and time, in the same order as the files (JSON), so exports can show per-photo GPS.
+  // Each photo's own GPS, time and category, in the same order as the files (JSON).
   const meta = (type) =>
     JSON.stringify(
-      (photos ?? []).filter((p) => p.type === type).map((p) => ({ lat: p.lat, lng: p.lng, taken_at: p.takenAt && serverTime(p.takenAt) })),
+      (photos ?? [])
+        .filter((p) => p.type === type)
+        .map((p) => ({ lat: p.lat, lng: p.lng, taken_at: p.takenAt && serverTime(p.takenAt), category: p.category ?? null })),
     )
   if (photos?.length) {
     form.append('normal_photos_gps', meta('normal'))

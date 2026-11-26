@@ -30,9 +30,12 @@ export async function compressImage(file, { maxSize = 1600, quality = 0.75, stam
 }
 
 // Geo-tag lines for a visit photo: where, when and which school.
-export function geoStamp({ lat, lng, accuracy, fromVisit }, takenAt, draft) {
+export function geoStamp({ lat, lng, accuracy, fromVisit }, takenAt, draft, category) {
   const when = takenAt.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })
   const where = lat == null ? 'Location not available' : `Lat ${lat.toFixed(6)}, Long ${lng.toFixed(6)}`
   const acc = lat != null && accuracy != null ? ` ±${accuracy} m` : ''
-  return [`${where}${acc}${fromVisit ? ' (visit location)' : ''}`, `${when} · ${draft.schoolName}, ${draft.city}`]
+  return [
+    `${where}${acc}${fromVisit ? ' (visit location)' : ''}`,
+    `${category ? `${category} · ` : ''}${when} · ${draft.schoolName}, ${draft.city}`,
+  ]
 }

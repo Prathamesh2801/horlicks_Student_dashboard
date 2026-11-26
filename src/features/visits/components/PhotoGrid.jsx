@@ -58,7 +58,16 @@ function Flags({ photo, onFlag }) {
 
 // editable = staff before submit (delete + add tiles). pending = photos still uploading.
 // onFlag(photo, { show } | { best }) = admin: Show / ★ Best controls under each photo.
-export default function PhotoGrid({ photos, editable, onDelete, onAdd, pending = 0, label, onFlag, className = 'grid-cols-2 sm:grid-cols-3' }) {
+export default function PhotoGrid({
+  photos,
+  editable,
+  onDelete,
+  onAdd,
+  pending = 0,
+  label,
+  onFlag,
+  className = 'grid-cols-2 sm:grid-cols-3',
+}) {
   const [viewing, setViewing] = useState(null)
 
   return (
@@ -72,7 +81,9 @@ export default function PhotoGrid({ photos, editable, onDelete, onAdd, pending =
             animate={{ opacity: 1, scale: 1 }}
             className="overflow-hidden rounded-xl bg-white ring-1 ring-gray-200"
           >
-            <div className={`relative aspect-[4/3] ${onFlag && !p.show ? 'opacity-45' : ''} ${p.url ? 'bg-gray-100' : p.type === 'headcount' ? HEAD_TINT : TINTS[i % TINTS.length]}`}>
+            <div
+              className={`relative aspect-[4/3] ${onFlag && !p.show ? 'opacity-45' : ''} ${p.url ? 'bg-gray-100' : p.type === 'headcount' ? HEAD_TINT : TINTS[i % TINTS.length]}`}
+            >
               {p.url ? (
                 <button type="button" onClick={() => setViewing(p)} className="size-full" aria-label="View photo">
                   <img src={p.url} alt="" loading="lazy" className="size-full object-cover" />
@@ -93,13 +104,22 @@ export default function PhotoGrid({ photos, editable, onDelete, onAdd, pending =
                 </button>
               )}
               <AiPill photo={p} editable={editable} />
+              {p.category && (
+                <span className="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-gray-800 shadow-sm">
+                  {p.category}
+                </span>
+              )}
               {onFlag && p.best && (
                 <span className="absolute left-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
                   <MdStar className="size-3.5" /> Best
                 </span>
               )}
             </div>
-            {onFlag ? <Flags photo={p} onFlag={onFlag} /> : label && <p className="px-3 py-2 text-xs font-semibold text-gray-800">{label}</p>}
+            {onFlag ? (
+              <Flags photo={p} onFlag={onFlag} />
+            ) : (
+              label && <p className="px-3 py-2 text-xs font-semibold text-gray-800">{label}</p>
+            )}
           </motion.div>
         ))}
 

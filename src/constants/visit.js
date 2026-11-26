@@ -6,6 +6,9 @@ export const PHOTO_TYPES = [
   { value: 'headcount', label: 'Headcount · AI' },
 ]
 
+// Normal photos: the Ground Team picks one of these before taking the photo (client, 26 Nov).
+export const PHOTO_CATEGORIES = ['Reporting', 'Collateral', 'Activity', 'Gratification', 'Sample Distribution', 'Closing']
+
 // Photos per visit, per type (client's rule). The server must allow the same (see docs/SERVER_API.md).
 export const MAX_PHOTOS = { normal: 20, headcount: 10 }
 

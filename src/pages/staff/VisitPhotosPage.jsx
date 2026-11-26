@@ -5,14 +5,12 @@ import { MdCloudDone, MdCloudOff, MdDeleteOutline, MdErrorOutline, MdGroups, MdP
 import BottomBar from '../../components/common/BottomBar'
 import TopBar from '../../components/common/TopBar'
 import { Button, EmptyState, Input, Modal, Spinner } from '../../components/ui'
-import { MAX_PHOTOS, PHOTO_TYPES } from '../../constants/visit'
+import { MAX_PHOTOS, PHOTO_CATEGORIES, PHOTO_TYPES } from '../../constants/visit'
 import { PhotoGrid, useDraft } from '../../features/visits'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { addPhoto, deleteDraft, deletePhoto, updateDraft } from '../../services/drafts/draftStore'
 import { uploadDraft } from '../../services/drafts/uploadQueue'
 import { compressImage, geoStamp } from '../../utils/compressImage'
-
-const HELP = { normal: 'Banner, leaflet, marketing and other activity photos.' }
 
 // Upload progress dialog content.
 function UploadStatus({ upload, onDone }) {
@@ -58,6 +56,7 @@ export default function VisitPhotosPage() {
   const [confirm, setConfirm] = useState(null) // 'submit' | 'discard' | photo to delete
   const [upload, setUpload] = useState(null) // { phase: 'upload' | 'counting' | 'queued' | 'error', progress, message }
   const [message, setMessage] = useState(null)
+  const [category, setCategory] = useState('') // normal photos: chosen before taking the photo
   const [covered, setCovered] = useState(null) // typed value (saved to the draft as you type)
   const cameraRef = useRef(null)
   const uploadRef = useRef(null)
@@ -106,14 +105,15 @@ export default function VisitPhotosPage() {
     setMessage(all.length > files.length ? `Maximum ${max} ${kind} photos per visit. ${all.length - files.length} not added.` : null)
     if (!files.length) return
     const type = tab
+    const cat = type === 'normal' ? category : null
     setAdding((u) => ({ ...u, [type]: u[type] + files.length }))
     // Fall back to the visit's location if GPS is unavailable for this photo.
     const coords = await locate().catch(() => ({ lat: draft.lat, lng: draft.lng, accuracy: draft.accuracy, fromVisit: true }))
     for (const file of files) {
       try {
         // Geo-tag printed on the image itself: coordinates, date/time, school.
-        const stamp = geoStamp(coords, new Date(), draft)
-        await addPhoto(id, { file: await compressImage(file, { stamp }), type, lat: coords.lat, lng: coords.lng })
+        const stamp = geoStamp(coords, new Date(), draft, cat)
+        await addPhoto(id, { file: await compressImage(file, { stamp }), type, category: cat, lat: coords.lat, lng: coords.lng })
       } catch (err) {
         setMessage(err.message)
       }
@@ -214,7 +214,29 @@ export default function VisitPhotosPage() {
       </div>
 
       {tab === 'normal' ? (
-        <p className="mt-3 text-sm text-gray-600">{HELP.normal}</p>
+        <div className="mt-3">
+          <p className="mb-2 text-sm font-semibold text-gray-800">1 · Choose the photo category</p>
+          <div role="radiogroup" aria-label="Photo category" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {PHOTO_CATEGORIES.map((c) => {
+              const n = photos.normal.filter((p) => p.category === c).length
+              const on = category === c
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setCategory(c)}
+                  className={`flex items-center justify-between gap-1 rounded-xl px-3 py-2.5 text-left text-sm font-semibold ring-1 transition ${on ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-gray-800 ring-gray-300 hover:bg-brand-50'}`}
+                >
+                  {c}
+                  {n > 0 && <span className={`rounded-full px-1.5 text-[11px] ${on ? 'bg-white/25' : 'bg-gray-200'}`}>{n}</span>}
+                </button>
+              )
+            })}
+          </div>
+          <p className="mb-1 mt-3 text-sm font-semibold text-gray-800">2 · Take the photo</p>
+        </div>
       ) : (
         <div className="mt-3 flex gap-3 rounded-xl bg-amber-50 p-3.5 ring-1 ring-amber-100">
           <MdGroups className="size-6 shrink-0 text-amber-600" />
@@ -238,14 +260,21 @@ export default function VisitPhotosPage() {
         />
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <Button onClick={() => cameraRef.current.click()} size="lg" disabled={full}>
-          <MdPhotoCamera className="size-5" /> Take photo
+      {tab === 'normal' ? (
+        // Camera only: the geo-tag must be where and when the photo is taken.
+        <Button className="w-full" onClick={() => cameraRef.current.click()} size="lg" disabled={full || !category}>
+          <MdPhotoCamera className="size-5" /> {category ? `Take photo · ${category}` : 'Choose a category first'}
         </Button>
-        <Button variant="secondary" onClick={() => uploadRef.current.click()} size="lg" disabled={full}>
-          <MdUpload className="size-5" /> Upload
-        </Button>
-      </div>
+      ) : (
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Button onClick={() => cameraRef.current.click()} size="lg" disabled={full}>
+            <MdPhotoCamera className="size-5" /> Take photo
+          </Button>
+          <Button variant="secondary" onClick={() => uploadRef.current.click()} size="lg" disabled={full}>
+            <MdUpload className="size-5" /> Upload
+          </Button>
+        </div>
+      )}
       <p className={`mt-1.5 text-right text-[11px] ${full ? 'font-semibold text-amber-700' : 'text-gray-500'}`}>
         {full && !adding[tab] && !message
           ? `Maximum reached: ${max} ${kind} photos. Delete one to add another.`
@@ -266,7 +295,7 @@ export default function VisitPhotosPage() {
           editable
           pending={adding[tab]}
           onDelete={setConfirm}
-          onAdd={full ? undefined : () => uploadRef.current.click()}
+          onAdd={full || (tab === 'normal' && !category) ? undefined : () => (tab === 'normal' ? cameraRef : uploadRef).current.click()}
           className="grid-cols-2"
         />
       </div>
