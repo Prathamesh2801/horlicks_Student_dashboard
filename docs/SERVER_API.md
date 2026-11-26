@@ -362,6 +362,8 @@ Existing local photos keep working; they are not copied to S3. `.env` keys: `S3_
 
 ## Deploying the app (API proxy)
 
+> **Production (26 Nov 2026):** the API is `https://poshansepragati.theeventpics.com/API` (https, CORS `*`), so `API_PROXY` is `''` and the browser calls it directly. **No proxy is needed:** run `npm run build` and upload the contents of `dist.zip` to any static host. The proxy below is only for an http API, e.g. the LAN test server.
+
 The built app (`npm run build` → `dist/`) calls `/server-api/...` on the **same site** it is served from. The web server that hosts `dist/` must forward that path to the PHP API (keep the `Authorization` header, allow uploads up to ~64 MB).
 
 **Apache** (needs `mod_proxy` + `mod_proxy_http`), in the app's VirtualHost:
