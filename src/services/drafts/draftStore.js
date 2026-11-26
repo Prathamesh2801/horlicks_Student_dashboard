@@ -1,11 +1,11 @@
 import { idb, keepDataOnDevice } from '../../utils/idb'
 
 // Visits being built on the phone, before they are uploaded. Everything works offline.
-// Draft: { id, username, staffName, date, city, schoolName, pocName, pocContact, lat, lng, accuracy, startedAt (form opened), createdAt, photos: [{ id, type, lat, lng, takenAt }],
+// Draft: { id, username, staffName, date, city, district, village, udise, schoolName, schoolType, classCategory, pocName, pocContact, lat, lng, accuracy, startedAt (form opened), studentsCovered, createdAt, photos: [{ id, type, lat, lng, takenAt }],
 //          state: 'draft' | 'queued' (submitted, waiting for internet) | 'failed' (server refused, see error), error }
 // Photo images are stored separately (photos store) so lists stay fast.
 
-const uid = () => (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36))
+const uid = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)
 
 // Tell screens a draft changed (added photo, queued, uploaded...).
 export const draftEvents = new EventTarget()
@@ -19,7 +19,23 @@ const readDataUrl = (blob) =>
     reader.readAsDataURL(blob)
   })
 
-export async function createDraft({ user, date, city, schoolName, pocName, pocContact, lat, lng, accuracy, startedAt }) {
+export async function createDraft({
+  user,
+  date,
+  city,
+  district,
+  village,
+  udise,
+  schoolName,
+  schoolType,
+  classCategory,
+  pocName,
+  pocContact,
+  lat,
+  lng,
+  accuracy,
+  startedAt,
+}) {
   keepDataOnDevice()
   const draft = {
     id: uid(),
@@ -27,7 +43,12 @@ export async function createDraft({ user, date, city, schoolName, pocName, pocCo
     staffName: user.name,
     date,
     city,
+    district,
+    village,
+    udise,
     schoolName,
+    schoolType,
+    classCategory,
     pocName,
     pocContact,
     lat,

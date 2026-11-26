@@ -50,3 +50,12 @@ export const REVIEW = {
   rejected: { label: 'Rejected', tone: 'red' },
 }
 export const REVIEW_FILTERS = Object.entries(REVIEW).map(([value, r]) => ({ value, label: r.label }))
+
+// Visit form dropdowns (revised scope v2, confirmed by the client 26 Nov).
+export const SCHOOL_TYPES = ['Government', 'Private'].map((v) => ({ value: v, label: v }))
+export const CLASS_CATEGORIES = ['1–3', '4–6', '7–9'].map((v) => ({ value: v, label: v }))
+
+// Districts sent by the client (26 Nov). The form uses the server's list (Districts) and falls back to this one.
+// prettier-ignore
+export const DISTRICTS = ['ANUGUL', 'BALANGIR', 'BARGARH', 'BAUDH', 'DHENKANAL', 'GAJAPATI', 'GANJAM', 'JHARSUGUDA', 'KALAHANDI', 'KANDHAMAL',
+  'KENDUJHAR', 'KORAPUT', 'MALKANGIRI', 'MAYURBHANJ', 'NABARANGAPUR', 'NUAPADA', 'RAYAGADA', 'SUBARNAPUR', 'SUNDARGARH']

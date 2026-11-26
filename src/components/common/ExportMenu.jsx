@@ -5,7 +5,8 @@ import { downloadCsv } from '../../utils/downloadCsv'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 
 // "Export ▾" with Excel (.xlsx) and CSV. getRows() returns [header, ...rows] for what is shown (current filters).
-export default function ExportMenu({ filename, getRows, count, noun = 'rows', disabled }) {
+// getPhotoRows (optional): adds a "Photos" sheet to the Excel file (one row per photo: link + GPS).
+export default function ExportMenu({ filename, getRows, getPhotoRows, count, noun = 'rows', disabled }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const ref = useRef(null)
@@ -26,7 +27,11 @@ export default function ExportMenu({ filename, getRows, count, noun = 'rows', di
     setOpen(false)
     setBusy(true)
     try {
-      if (kind === 'xlsx') await downloadXlsx(`${filename}.xlsx`, getRows())
+      if (kind === 'xlsx')
+        await downloadXlsx(`${filename}.xlsx`, [
+          { name: 'Visits', rows: getRows() },
+          ...(getPhotoRows ? [{ name: 'Photos', rows: getPhotoRows() }] : []),
+        ])
       else downloadCsv(`${filename}.csv`, getRows())
     } finally {
       setBusy(false)
@@ -54,7 +59,7 @@ export default function ExportMenu({ filename, getRows, count, noun = 'rows', di
       </Button>
       {open && (
         <div role="menu" className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-gray-200">
-          {item('xlsx', 'Excel (.xlsx)', 'Formatted sheet, one row per visit')}
+          {item('xlsx', 'Excel (.xlsx)', getPhotoRows ? 'Visits sheet + Photos sheet (photo links, GPS)' : 'Formatted sheet, one row per visit')}
           <div className="border-t border-gray-100" />
           {item('csv', 'CSV (.csv)', 'Plain data for any tool')}
           <p className="border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500">

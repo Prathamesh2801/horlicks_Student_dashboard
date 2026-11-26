@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { MdContentCopy, MdPictureAsPdf } from 'react-icons/md'
+import ExportMenu from '../../components/common/ExportMenu'
 import PageHeader from '../../components/common/PageHeader'
 import { LoadError, NoResults, Pagination, PeriodFilter, TableSkeleton, TableToolbar, useTableState } from '../../components/table'
 import { Badge, Button, Card, Select, Spinner } from '../../components/ui'
 import { periodRange } from '../../constants/visit'
-import { AI_FILTERS, staffOptions, VISIT_SORT, visitMatches } from '../../features/monitoring'
+import { AI_FILTERS, photoRows, staffOptions, VISIT_SORT, visitMatches, visitRows } from '../../features/monitoring'
 import { useAsync } from '../../hooks/useAsync'
 import { usePendingChanges } from '../../hooks/usePendingChanges'
 import { createReport, listReports, REPORT_MAX_VISITS, retryReport, waitForReport } from '../../services/api/reports.service'
 import { getCities, listVisits } from '../../services/api/visits.service'
-import { formatDateTime, formatNumber, formatShortDate } from '../../utils/format'
+import { formatDateTime, formatNumber, formatShortDate, todayISO } from '../../utils/format'
 
 const FILTERS = { city: '', period: 'this', from: '', to: '', staff: '', ai: '', mode: 'all' }
 const REPORT_STATUS = {
@@ -114,9 +115,19 @@ export default function ReportsPage() {
 
       <Card className="overflow-hidden">
         <div className="space-y-3 p-5 pb-3">
-          <div>
-            <h2 className="font-bold">1 · Choose visits</h2>
-            <p className="text-xs text-gray-500">Only approved visits can be added to a report</p>
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="mr-auto">
+              <h2 className="font-bold">1 · Choose visits</h2>
+              <p className="text-xs text-gray-500">Only approved visits can be added to a report</p>
+            </div>
+            <ExportMenu
+              filename={`report-visits-${todayISO()}`}
+              getRows={() => visitRows(chosen)}
+              getPhotoRows={() => photoRows(chosen)}
+              count={chosen.length}
+              noun="selected visits"
+              disabled={!chosen.length}
+            />
           </div>
           <TableToolbar table={table} placeholder="Search school or Ground Team" onRefresh={reload} refreshing={refreshing}>
             <PeriodFilter table={table} />

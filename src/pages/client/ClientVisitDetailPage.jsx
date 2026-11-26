@@ -33,6 +33,9 @@ export default function ClientVisitDetailPage() {
           <div>
             <p className="text-sm text-gray-600">Students reached</p>
             <p className="text-3xl font-bold">{formatNumber(visit.headcount)}</p>
+            {visit.studentsCovered != null && (
+              <p className="text-xs text-gray-500">Students covered in the session: {formatNumber(visit.studentsCovered)}</p>
+            )}
           </div>
         </Card>
         <Card className="flex items-center gap-4 p-5">

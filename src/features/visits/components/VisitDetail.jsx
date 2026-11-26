@@ -97,6 +97,11 @@ export default function VisitDetail({ visit, admin }) {
       <dl className="divide-y divide-gray-100">
         {admin && <Row label="School">{visit.schoolName}</Row>}
         <Row label="City">{visit.cityName}</Row>
+        {visit.district && <Row label="District">{visit.district}</Row>}
+        {visit.village && <Row label="Village">{visit.village}</Row>}
+        {visit.udise && <Row label="UDISE code">{visit.udise}</Row>}
+        {visit.schoolType && <Row label="School type">{visit.schoolType}</Row>}
+        {visit.classCategory && <Row label="Class category">{visit.classCategory}</Row>}
         <Row label="Visit date">{formatDate(visit.date)}</Row>
         {visit.pocName && (
           <Row label="POC">

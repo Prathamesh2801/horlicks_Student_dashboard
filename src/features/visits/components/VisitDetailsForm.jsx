@@ -3,7 +3,8 @@ import { MdLocationOn } from 'react-icons/md'
 import BottomBar from '../../../components/common/BottomBar'
 import { Button, Card, Input, Select, Spinner } from '../../../components/ui'
 import { useGeolocation } from '../../../hooks/useGeolocation'
-import { getCities } from '../../../services/api/visits.service'
+import { CLASS_CATEGORIES, SCHOOL_TYPES } from '../../../constants/visit'
+import { getCities, getDistricts } from '../../../services/api/visits.service'
 import { formatCoords, formatTime, todayISO } from '../../../utils/format'
 
 function LocationBox({ geo, onRetry }) {
@@ -34,30 +35,66 @@ function LocationBox({ geo, onRetry }) {
   )
 }
 
-// Step 1 of a visit: Date, City (server list, cached for offline use), School name, POC name + contact number, GPS.
+// Step 1 of a visit: Date, City + District (server lists, cached for offline use), Village, UDISE, School name, School type,
+// Class category, POC name + contact number, GPS.
 export default function VisitDetailsForm({ onSubmit, submitting }) {
-  const [form, setForm] = useState({ date: todayISO(), city: '', schoolName: '', pocName: '', pocContact: '' })
+  const [form, setForm] = useState({
+    date: todayISO(),
+    city: '',
+    district: '',
+    village: '',
+    udise: '',
+    schoolName: '',
+    schoolType: '',
+    classCategory: '',
+    pocName: '',
+    pocContact: '',
+  })
   // Visit Start Timestamp: when the form was opened (not when it's submitted).
   const [startedAt] = useState(() => new Date().toISOString())
   const [cities, setCities] = useState([])
+  const [districts, setDistricts] = useState([])
   const [citiesError, setCitiesError] = useState(null)
   const geo = useGeolocation()
   const { locate } = geo
 
   useEffect(() => {
     getCities().then(setCities, (e) => setCitiesError(e.message))
+    getDistricts().then(setDistricts)
     locate().catch(() => {})
   }, [locate])
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const contactOk = /^[6-9]\d{9}$/.test(form.pocContact)
-  const ready = form.date && form.city && form.schoolName.trim().length >= 2 && form.pocName.trim().length >= 2 && contactOk && geo.coords
+  const udiseOk = /^\d{11}$/.test(form.udise) // UDISE+ school codes are 11 digits
+  const digits = (key, n) => (e) => setForm((f) => ({ ...f, [key]: e.target.value.replace(/\D/g, '').slice(0, n) }))
+  const ready =
+    form.date &&
+    form.city &&
+    form.district &&
+    form.village.trim().length >= 2 &&
+    udiseOk &&
+    form.schoolName.trim().length >= 2 &&
+    form.schoolType &&
+    form.classCategory &&
+    form.pocName.trim().length >= 2 &&
+    contactOk &&
+    geo.coords
 
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!ready) return
     const { lat, lng, accuracy } = geo.coords
-    onSubmit({ ...form, schoolName: form.schoolName.trim(), pocName: form.pocName.trim(), lat, lng, accuracy, startedAt })
+    onSubmit({
+      ...form,
+      village: form.village.trim(),
+      schoolName: form.schoolName.trim(),
+      pocName: form.pocName.trim(),
+      lat,
+      lng,
+      accuracy,
+      startedAt,
+    })
   }
 
   return (
@@ -73,6 +110,26 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           options={cities.map((c) => ({ value: c, label: c }))}
           required
         />
+        <Select
+          label="District"
+          placeholder="Select district"
+          value={form.district}
+          onChange={set('district')}
+          options={districts.map((d) => ({ value: d, label: d }))}
+          required
+        />
+        <Input label="Village" value={form.village} onChange={set('village')} minLength={2} maxLength={100} autoComplete="off" required />
+        <Input
+          label="UDISE code"
+          inputMode="numeric"
+          placeholder="11-digit school code"
+          value={form.udise}
+          onChange={digits('udise', 11)}
+          maxLength={11}
+          autoComplete="off"
+          hint={form.udise && !udiseOk ? `${11 - form.udise.length} more digits` : undefined}
+          required
+        />
         <Input
           label="School name"
           placeholder="e.g. Govt. UP School, Patia"
@@ -83,6 +140,24 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           autoComplete="off"
           required
         />
+        <div className="grid grid-cols-2 gap-3">
+          <Select
+            label="School type"
+            placeholder="Select"
+            value={form.schoolType}
+            onChange={set('schoolType')}
+            options={SCHOOL_TYPES}
+            required
+          />
+          <Select
+            label="Class category"
+            placeholder="Select"
+            value={form.classCategory}
+            onChange={set('classCategory')}
+            options={CLASS_CATEGORIES}
+            required
+          />
+        </div>
         <Input label="POC name" value={form.pocName} onChange={set('pocName')} minLength={2} maxLength={100} autoComplete="off" required />
         <Input
           label="Contact number"
@@ -90,7 +165,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           inputMode="numeric"
           placeholder="10-digit mobile number"
           value={form.pocContact}
-          onChange={(e) => setForm((f) => ({ ...f, pocContact: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+          onChange={digits('pocContact', 10)}
           maxLength={10}
           autoComplete="off"
           hint={

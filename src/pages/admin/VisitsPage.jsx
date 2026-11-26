@@ -6,7 +6,7 @@ import PageHeader from '../../components/common/PageHeader'
 import { LoadError, NoResults, Pagination, PeriodFilter, RefreshBar, StaleBanner, TableSkeleton, TableToolbar, useTableState } from '../../components/table'
 import { Button, Card, Select } from '../../components/ui'
 import { periodRange, REVIEW, REVIEW_FILTERS } from '../../constants/visit'
-import { AI_FILTERS, staffOptions, VISIT_FILTERS, VISIT_SORT, visitMatches, VisitsTable } from '../../features/monitoring'
+import { AI_FILTERS, photoRows, staffOptions, VISIT_FILTERS, VISIT_SORT, visitMatches, visitRows, VisitsTable } from '../../features/monitoring'
 import { useAsync } from '../../hooks/useAsync'
 import { usePendingChanges } from '../../hooks/usePendingChanges'
 import { getCities, listVisits, reviewVisits } from '../../services/api/visits.service'
@@ -23,13 +23,6 @@ const SORT_OPTIONS = [
   { value: 'review', label: 'Review status' },
 ]
 
-const exportRows = (visits) => [
-  ['Visit ID', 'Date', 'School', 'City', 'Ground Team', 'POC name', 'POC contact', 'Review', 'Photos', 'Unique students', 'Faces (incl. repeats)', 'AI photos failed', 'Latitude', 'Longitude', 'Uploaded'],
-  ...visits.map((v) => [
-    v.id, v.date, v.schoolName, v.cityName, v.staffName, v.pocName, v.pocContact, REVIEW[v.review]?.label,
-    v.photoCount, v.headcount, v.facesSeen, v.aiFailed, v.lat, v.lng, v.submittedAt,
-  ]),
-]
 
 // City + period are filtered by the server; search, staff, AI, review, sorting and paging happen here.
 // Everything is kept in the URL, so Back from a visit returns to the same view.
@@ -47,7 +40,7 @@ export default function VisitsPage() {
     filters: VISIT_FILTERS,
     defaultSort: '-date',
     sortValue: VISIT_SORT,
-    searchText: (v) => `${v.schoolName} ${v.staffName} ${v.cityName} ${v.pocName ?? ''}`,
+    searchText: (v) => `${v.schoolName} ${v.staffName} ${v.cityName} ${v.district ?? ''} ${v.village ?? ''} ${v.udise ?? ''} ${v.pocName ?? ''}`,
     matches: visitMatches,
   })
 
@@ -95,7 +88,8 @@ export default function VisitsPage() {
                 {approving ? `Approving ${approving.done} of ${approving.total}…` : `Approve ${formatNumber(waitingShown.length)}`}
               </Button>
             )}
-            <ExportMenu filename={`visits-${todayISO()}`} getRows={() => exportRows(table.filtered)} count={table.total} noun="visits" disabled={!table.total} />
+            <ExportMenu filename={`visits-${todayISO()}`} getRows={() => visitRows(table.filtered)}
+              getPhotoRows={() => photoRows(table.filtered)} count={table.total} noun="visits" disabled={!table.total} />
           </div>
         }
       />
