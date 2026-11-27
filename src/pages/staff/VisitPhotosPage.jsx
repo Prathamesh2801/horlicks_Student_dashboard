@@ -91,6 +91,7 @@ export default function VisitPhotosPage() {
   const stillAdding = adding.normal + adding.headcount > 0
   const max = MAX_PHOTOS[tab]
   const full = photos[tab].length + adding[tab] >= max
+  const categoryOk = tab !== 'normal' || !!category // normal photos need a category before camera or upload
   const kind = tab === 'normal' ? 'normal' : 'headcount'
 
   const handleFiles = async (e) => {
@@ -238,7 +239,7 @@ export default function VisitPhotosPage() {
               )
             })}
           </div>
-          <p className="mb-1 mt-3 text-sm font-semibold text-gray-800">2 · Take the photo</p>
+          <p className="mb-1 mt-3 text-sm font-semibold text-gray-800">2 · {canUpload ? 'Take or upload the photo' : 'Take the photo'}</p>
         </div>
       ) : (
         <div className="mt-3 flex gap-3 rounded-xl bg-amber-50 p-3.5 ring-1 ring-amber-100">
@@ -250,23 +251,17 @@ export default function VisitPhotosPage() {
         </div>
       )}
 
-      {tab === 'normal' ? (
-        // Camera only: the geo-tag must be where and when the photo is taken.
-        <Button className="w-full" onClick={() => cameraRef.current.click()} size="lg" disabled={full || !category}>
-          <MdPhotoCamera className="size-5" /> {category ? `Take photo · ${category}` : 'Choose a category first'}
+      {/* Admin setting "Upload button" adds gallery upload next to the camera, on both tabs. */}
+      <div className={`mt-3 grid gap-3 ${canUpload ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <Button onClick={() => cameraRef.current.click()} size="lg" disabled={full || !categoryOk}>
+          <MdPhotoCamera className="size-5" /> {canUpload ? 'Take photo' : !categoryOk ? 'Choose a category first' : tab === 'normal' ? `Take photo · ${category}` : 'Take photo'}
         </Button>
-      ) : (
-        <div className={`mt-3 grid gap-3 ${canUpload ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          <Button onClick={() => cameraRef.current.click()} size="lg" disabled={full}>
-            <MdPhotoCamera className="size-5" /> Take photo
+        {canUpload && (
+          <Button variant="secondary" onClick={() => uploadRef.current.click()} size="lg" disabled={full || !categoryOk}>
+            <MdUpload className="size-5" /> Upload
           </Button>
-          {canUpload && (
-            <Button variant="secondary" onClick={() => uploadRef.current.click()} size="lg" disabled={full}>
-              <MdUpload className="size-5" /> Upload
-            </Button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
       <p className={`mt-1.5 text-right text-[11px] ${full ? 'font-semibold text-amber-700' : 'text-gray-500'}`}>
         {full && !adding[tab] && !message
           ? `Maximum reached: ${max} ${kind} photos. Delete one to add another.`
@@ -288,9 +283,7 @@ export default function VisitPhotosPage() {
           pending={adding[tab]}
           onDelete={setConfirm}
           onAdd={
-            full || (tab === 'normal' && !category)
-              ? undefined
-              : () => (tab === 'normal' || !canUpload ? cameraRef : uploadRef).current.click()
+            full || !categoryOk ? undefined : () => (canUpload ? uploadRef : cameraRef).current.click()
           }
           className="grid-cols-2"
         />

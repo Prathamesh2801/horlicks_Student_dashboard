@@ -68,7 +68,6 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const digits = (key, n) => (e) => setForm((f) => ({ ...f, [key]: e.target.value.replace(/\D/g, '').slice(0, n) }))
   const contactValid = /^[6-9]\d{9}$/.test(form.pocContact)
-  const udiseOk = /^\d{15}$/.test(form.udise) // UDISE code: 15 digits (client, 27 Nov)
   // Admin settings (server visit_form.php): hidden = not asked; optional = may be empty, but valid if filled.
   const shown = (name) => fields[name] ?? true // only poc_name / poc_contact can be off
   const req = shown
@@ -78,7 +77,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
     form.district &&
     form.schoolName.trim().length >= 2 &&
     ok('village', !!form.village.trim(), form.village.trim().length >= 2) &&
-    ok('udise', !!form.udise, udiseOk) &&
+    ok('udise', !!form.udise) &&
     ok('school_type', !!form.schoolType) &&
     ok('class_category', !!form.classCategory) &&
     ok('poc_name', !!form.pocName.trim(), form.pocName.trim().length >= 2) &&
@@ -88,7 +87,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   const missing = [
     !form.district && 'District',
     !ok('village', !!form.village.trim(), form.village.trim().length >= 2) && 'Village',
-    !ok('udise', !!form.udise, udiseOk) && 'UDISE code',
+    !ok('udise', !!form.udise) && 'UDISE code',
     form.schoolName.trim().length < 2 && 'School name',
     !ok('school_type', !!form.schoolType) && 'School type',
     !ok('class_category', !!form.classCategory) && 'Class category',
@@ -148,12 +147,11 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           <Input
             label={optional('udise', 'UDISE code')}
             inputMode="numeric"
-            placeholder="15-digit school code"
+            placeholder="School code (up to 15 digits)"
             value={form.udise}
             onChange={digits('udise', 15)}
             maxLength={15}
             autoComplete="off"
-            error={form.udise && !udiseOk ? `${15 - form.udise.length} more digits needed (UDISE is 15 digits)` : undefined}
             required={req('udise')}
           />
         )}

@@ -1,6 +1,6 @@
 # Server API reference: Horlicks School Tribes API
 
-> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.26.0**; what changed and what's still needed is at the end ("Connected in the app").
+> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.27.0**; what changed and what's still needed is at the end ("Connected in the app").
 > Live, always-current version: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 > (it also has a *Try it* console). If this copy and the live page differ, **the live page wins**: update this file.
 
@@ -457,7 +457,7 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 - [x] ~~Excel / PPT export~~: Excel and CSV are made in the browser; reports are shared as links (no PDF / PPT).
 - [ ] Production: **HTTPS** + public domain for the API (needed for installing the app and for phones on mobile data).
 
-### Connected in the app (server v1.26.0, 27 Nov 2026)
+### Connected in the app (server v1.27.0, 27 Nov 2026)
 
 | Feature | Server | App |
 |---|---|---|
@@ -475,14 +475,13 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 | Photo categories (v1.16–1.17) | Normal photos uploaded as `normal_photos[<key>][]` (keys: reporting, collateral, activity, gratification, sample_distribution, closing); photos return `Category` | Category chosen before the camera; chip on each photo; Excel Photos sheet |
 | Auditor + audit (v1.18) | `Role: Auditor`; `PUT Staff/visit.php` `{ visit_id, is_audit_pass, auditor_comment }` (Auditors only); visits return `Is_Audit_Pass`, `Auditor_Comment`, `Audit_Updated_AT` (+ `Audit_Updated_By` for Admin / Auditor) | Audit card (Approve / Reject; the app requires a comment to reject), Audit column / filter / totals, Excel columns |
 | Count correction (v1.19) | `Admin/visit_count.php` PUT `{ visit_id, unique_person_count, reason }`, GET `?visit_id=` history; `Unique_Count_Manual` | Admin visit page: "Correct the student count" with reason and change history; card says "corrected by Admin" |
-| Upload button setting (v1.20) | `Upload_Button.Show` in `GET Admin/visit_form.php`; `PUT { upload_button: { show } }` | Admin → Settings switch; when hidden, the Ground Team's headcount tab is camera only (normal photos are always camera only) |
+| Upload button setting (v1.20) | `Upload_Button.Show` in `GET Admin/visit_form.php`; `PUT { upload_button: { show } }` | Admin → Settings switch; on = Take photo + Upload on both photo tabs (normal and headcount), off = camera only |
 | District replaces City (v1.21) | No `city` on create; `district` always required; lists return `Districts`; filter `district`; targets per `district` (`Districts`, `Districts_With_Target`) | No City on the form (District first); every filter, chart, map, target and export says District. Old city-only visits show "Not set" |
 | Photo location and time (v1.22) | `normal_photos_meta[<key>][]` / `ai_photos_meta[]` JSON `{lat, lng, accuracy, taken_at}` next to each file; photos return `Latitude`, `Longitude`, `Accuracy`, `Taken_AT`. PDF reports print each photo's location and time and include only approved normal photos (all roles) | Sent on every upload; Excel Photos sheet shows each photo's own GPS, accuracy and time ("GPS from: Photo") |
 | Collateral Count (v1.23) | `PUT Admin/visit_count.php` with `collateral_count` and / or `unique_person_count` (one or both); visits return `Collateral_Count`; history rows have `Count` | Admin controls panel (Unique students + Collateral Count, Save, Show changes labelled Students / Collateral); summary card, client visit page, Excel |
 | Client-safe PDF (v1.24–1.25) | New PDF design (v1.24); `POST Report/report.php` with `"as_role": "Client"` from an Admin makes the client's version; reports return `View_As` | Reports page: "Client version" (default, to share) or "Internal (Admin)"; list shows which |
+| Targets: Approved only (v1.27) | `Done` (and Remaining, Percent_Done, Run_Rate, Needed_Rate, Projected_Finish_Date, Status) counts only **Approved** visits; `Waiting` = Pending visits in the same district and period (Admins only) | Admin, Client and Auditor see the same target numbers; admin target card shows "+ N waiting for review" |
 
 ### Still needed from the server (for this app)
 
-| Feature | Request | Why |
-|---|---|---|
-| **Targets: Approved visits only** (decided 27 Nov, Option B — not in v1.26) | In `Admin/target.php` (and the dashboard `Targets`), `Done` counts only **Approved** visits (today Pending counts too). Optional for Admins: add `Waiting` (Pending visits in the period) so the admin can see "40 approved · 20 waiting for review" | The client sees only Approved visits, so every number on their target card must match their visit list; progress never drops when a visit is rejected |
+Nothing at the moment (27 Nov 2026, v1.27.0).

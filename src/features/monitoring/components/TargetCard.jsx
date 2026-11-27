@@ -123,6 +123,9 @@ export default function TargetCard({ data, client, editTo }) {
                       </td>
                       <td className="px-3 py-2.5">
                         {formatNumber(c.done)} / {formatNumber(c.target)}
+                        {!client && c.waiting > 0 && (
+                          <span className="block text-xs font-semibold text-amber-700">+ {formatNumber(c.waiting)} waiting</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 font-bold">{pct(c)}</td>
                       {!client && <td className="px-3 py-2.5">{perDay(c.runRate)}</td>}

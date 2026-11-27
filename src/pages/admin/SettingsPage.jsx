@@ -8,7 +8,7 @@ import { formatDateTime } from '../../utils/format'
 const ROWS = [
   ['poc_name', 'POC name', 'On: the Ground Team must fill it in. Off: not asked.'],
   ['poc_contact', 'Contact number', 'On: the Ground Team must fill it in. Off: not asked.'],
-  ['upload_button', 'Upload button', 'On: headcount photos can also be picked from the gallery. Off: camera only.'],
+  ['upload_button', 'Upload button', 'On: normal and headcount photos can also be picked from the gallery. Off: camera only.'],
 ]
 
 // Admin: three on / off switches for the Ground Team visit form (server: Admin/visit_form.php).

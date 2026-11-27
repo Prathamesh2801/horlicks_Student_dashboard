@@ -3,8 +3,7 @@ import { brand } from './brand'
 
 export const config = {
   // Horlicks School Tribes PHP API. Reference: docs/SERVER_API.md
-  BASE_URL_SERVER:
-    "http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API",
+  BASE_URL_SERVER:"http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API",
   // (then set API_PROXY to '/server-api')
   // BASE_URL_SERVER: 'https://poshansepragati.theeventpics.com/API',
   // '' = the browser calls BASE_URL_SERVER directly (production: the API is https and allows any origin via CORS).
