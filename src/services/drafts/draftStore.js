@@ -1,7 +1,7 @@
 import { idb, keepDataOnDevice } from '../../utils/idb'
 
 // Visits being built on the phone, before they are uploaded. Everything works offline.
-// Draft: { id, username, staffName, date, city, district, village, udise, schoolName, schoolType, classCategory, pocName, pocContact, lat, lng, accuracy, startedAt (form opened), createdAt, photos: [{ id, type, category, lat, lng, takenAt }],
+// Draft: { id, username, staffName, date, city, district, village, udise, schoolName, schoolType, classCategory, pocName, pocContact, lat, lng, accuracy, startedAt (form opened), createdAt, photos: [{ id, type, category, lat, lng, accuracy, takenAt }],
 //          state: 'draft' | 'queued' (submitted, waiting for internet) | 'failed' (server refused, see error), error }
 // Photo images are stored separately (photos store) so lists stay fast.
 
@@ -80,9 +80,9 @@ export async function getDraft(id) {
 }
 
 // file: the compressed JPEG from the camera/upload.
-export async function addPhoto(draftId, { file, type, category, lat, lng }) {
+export async function addPhoto(draftId, { file, type, category, lat, lng, accuracy }) {
   const draft = await idb.get('drafts', draftId)
-  const photo = { id: uid(), type, category: category ?? null, lat, lng, takenAt: new Date().toISOString() }
+  const photo = { id: uid(), type, category: category ?? null, lat, lng, accuracy: accuracy ?? null, takenAt: new Date().toISOString() }
   await idb.put('photos', { id: photo.id, dataUrl: await readDataUrl(file) })
   draft.photos.push(photo)
   if (draft.state === 'failed') Object.assign(draft, { state: 'draft', error: null })

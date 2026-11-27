@@ -78,7 +78,7 @@ export default function CountCorrection({ visit }) {
           <ul className="space-y-1 border-t border-gray-100 pt-3 text-sm">
             {history.map((h) => (
               <li key={h.id} className="text-gray-700">
-                Students {h.from == null ? '—' : formatNumber(h.from)} → <b>{formatNumber(h.to)}</b>
+                {h.count === 'collateral' ? 'Collateral' : 'Students'} {h.from == null ? '—' : formatNumber(h.from)} → <b>{formatNumber(h.to)}</b>
                 <span className="text-gray-500">
                   {' '}
                   · {h.by} · {formatDateTime(h.at)}

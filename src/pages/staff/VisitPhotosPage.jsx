@@ -109,7 +109,14 @@ export default function VisitPhotosPage() {
       try {
         // Geo-tag printed on the image itself: coordinates, date/time, school.
         const stamp = geoStamp(coords, new Date(), draft, cat)
-        await addPhoto(id, { file: await compressImage(file, { stamp }), type, category: cat, lat: coords.lat, lng: coords.lng })
+        await addPhoto(id, {
+          file: await compressImage(file, { stamp }),
+          type,
+          category: cat,
+          lat: coords.lat,
+          lng: coords.lng,
+          accuracy: coords.accuracy,
+        })
       } catch (err) {
         setMessage(err.message)
       }

@@ -28,7 +28,12 @@ const toDate = (s) => (s ? s.replace(' ', 'T') : null)
 function toVisit(v) {
   // S3 photos: the server's temporary signed link (Url). Local photos: Path via our proxy (Url is plain http).
   const photoUrl = (p) => (p.Storage === 's3' ? p.Url : fileUrl(p.Path))
-  const gps = (p) => (p.Latitude == null ? {} : { lat: Number(p.Latitude), lng: Number(p.Longitude) }) // photo's own GPS, if sent
+  // Photo's own GPS / time (server stores the *_meta sent on upload); missing on older photos.
+  const gps = (p) => ({
+    ...(p.Latitude == null ? {} : { lat: Number(p.Latitude), lng: Number(p.Longitude) }),
+    accuracy: p.Accuracy ?? null,
+    takenAt: toDate(p.Taken_AT),
+  })
   // show = the client may see it (normal photos: Is_Approved by an admin; AI photos: always). best = ★ Best (Is_Best).
   const normal = (v.Normal_Photos ?? []).map((p) => ({
     id: `n${p.Photo_ID}`,
@@ -199,13 +204,27 @@ export async function createVisit(
   }
   Object.entries(optional).forEach(([k, v]) => v && form.append(k, v))
   // Normal photos go under their category: normal_photos[reporting][] … (same order as the draft's photos).
+  // Each file is followed by its *_meta (GPS + time when taken), same order and category, e.g.
+  // normal_photos[collateral][] + normal_photos_meta[collateral][] = {"lat","lng","accuracy","taken_at"}.
+  const meta = (p) =>
+    JSON.stringify({
+      lat: p?.lat ?? null,
+      lng: p?.lng ?? null,
+      accuracy: p?.accuracy ?? null,
+      taken_at: p?.takenAt ? new Date(p.takenAt).toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }) : null,
+    })
   const normalMeta = (photos ?? []).filter((p) => p.type === 'normal')
   normalPhotos.forEach((blob, i) => {
     // Drafts from before categories have none; they go under Activity.
     const key = categoryKey(normalMeta[i]?.category ?? 'Activity')
     form.append(`normal_photos[${key}][]`, blob, `${key}-${i + 1}.jpg`)
+    form.append(`normal_photos_meta[${key}][]`, meta(normalMeta[i]))
   })
-  aiPhotos.forEach((blob, i) => form.append('ai_photos[]', blob, `headcount-${i + 1}.jpg`))
+  const aiMeta = (photos ?? []).filter((p) => p.type === 'headcount')
+  aiPhotos.forEach((blob, i) => {
+    form.append('ai_photos[]', blob, `headcount-${i + 1}.jpg`)
+    form.append('ai_photos_meta[]', meta(aiMeta[i]))
+  })
   const data = await api.post(VISITS, form, {
     timeout: 15 * 60 * 1000, // slow mobile uploads of up to 30 photos
     onUploadProgress: (e) => e.total && onProgress?.(e.loaded / e.total),
@@ -255,9 +274,11 @@ export async function saveAudit(visitId, status, remark) {
   notifyChange()
 }
 
-// ---- unique student count correction (Admin, server v1.19) ----
+// ---- unique student count + collateral count (Admin, server v1.19 / v1.23) ----
+// Count: which number changed, Unique_Person_Count or Collateral_Count.
 const toCountChange = (c) => ({
   id: c.Change_ID,
+  count: c.Count === 'Collateral_Count' ? 'collateral' : 'students',
   from: c.From,
   to: c.To,
   reason: c.Reason ?? '',
@@ -273,7 +294,6 @@ export async function getCountHistory(visitId) {
 
 // Admin control panel: replace the AI's unique student count (the AI worker keeps it; "Count again" replaces it)
 // and / or set the Collateral Count. Pass only what changed (null = leave it).
-// ponytail: collateral_count is not on the server yet (docs/SERVER_API.md → Still needed).
 export async function correctCount(visitId, { count, collateral, reason }) {
   await api.put(COUNTS, {
     visit_id: Number(visitId),

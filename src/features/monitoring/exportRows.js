@@ -19,14 +19,14 @@ const absolute = (url) => (url ? new URL(url, window.location.href).href : '')
 // ponytail: S3 links from the server are temporary signed URLs, so links in an old export can stop working.
 export const photoRows = (visits) => [
   // prettier-ignore
-  ['Visit ID', 'Date', 'School', 'District', 'Photo', 'Category', 'Shown to client', '★ Best', 'Photo link', 'Latitude', 'Longitude', 'GPS from'],
+  ['Visit ID', 'Date', 'School', 'District', 'Photo', 'Category', 'Shown to client', '★ Best', 'Photo link', 'Latitude', 'Longitude', 'Accuracy (m)', 'Taken at', 'GPS from'],
   ...visits.flatMap((v) =>
     v.photos.map((p) => {
       const own = p.lat != null
       return [
         v.id, v.date, v.schoolName, v.cityName, p.type === 'headcount' ? 'Headcount (AI)' : 'Normal', p.category,
         p.show ? 'Yes' : 'No', p.best ? 'Yes' : '', { link: absolute(p.url), text: 'Open photo' },
-        own ? p.lat : v.lat, own ? p.lng : v.lng, own ? 'Photo' : 'Visit',
+        own ? p.lat : v.lat, own ? p.lng : v.lng, own ? p.accuracy : null, p.takenAt, own ? 'Photo' : 'Visit',
       ]
     }),
   ),

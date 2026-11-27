@@ -1,6 +1,6 @@
 # Server API reference: Horlicks School Tribes API
 
-> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.21.0**; what changed and what's still needed is at the end ("Connected in the app").
+> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.23.0**; what changed and what's still needed is at the end ("Connected in the app").
 > Live, always-current version: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 > (it also has a *Try it* console). If this copy and the live page differ, **the live page wins**: update this file.
 
@@ -457,7 +457,7 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 - [x] ~~Excel / PPT export~~: Excel and CSV are made in the browser; reports are shared as links (no PDF / PPT).
 - [ ] Production: **HTTPS** + public domain for the API (needed for installing the app and for phones on mobile data).
 
-### Connected in the app (server v1.21.0, 27 Nov 2026)
+### Connected in the app (server v1.23.0, 27 Nov 2026)
 
 | Feature | Server | App |
 |---|---|---|
@@ -477,13 +477,13 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 | Count correction (v1.19) | `Admin/visit_count.php` PUT `{ visit_id, unique_person_count, reason }`, GET `?visit_id=` history; `Unique_Count_Manual` | Admin visit page: "Correct the student count" with reason and change history; card says "corrected by Admin" |
 | Upload button setting (v1.20) | `Upload_Button.Show` in `GET Admin/visit_form.php`; `PUT { upload_button: { show } }` | Admin → Settings switch; when hidden, the Ground Team's headcount tab is camera only (normal photos are always camera only) |
 | District replaces City (v1.21) | No `city` on create; `district` always required; lists return `Districts`; filter `district`; targets per `district` (`Districts`, `Districts_With_Target`) | No City on the form (District first); every filter, chart, map, target and export says District. Old city-only visits show "Not set" |
+| Photo location and time (v1.22) | `normal_photos_meta[<key>][]` / `ai_photos_meta[]` JSON `{lat, lng, accuracy, taken_at}` next to each file; photos return `Latitude`, `Longitude`, `Accuracy`, `Taken_AT`. PDF reports print each photo's location and time and include only approved normal photos (all roles) | Sent on every upload; Excel Photos sheet shows each photo's own GPS, accuracy and time ("GPS from: Photo") |
+| Collateral Count (v1.23) | `PUT Admin/visit_count.php` with `collateral_count` and / or `unique_person_count` (one or both); visits return `Collateral_Count`; history rows have `Count` | Admin controls panel (Unique students + Collateral Count, Save, Show changes labelled Students / Collateral); summary card, client visit page, Excel |
 
 ### Still needed from the server (for this app)
 
 | Feature | Request | Why |
 |---|---|---|
-| **Client-safe PDF made by an Admin** | e.g. `"audience": "Client"` on `POST Report/report.php`: build the PDF as a Client would see it (Approved visits only, approved photos only, no POC / phone) | Today the PDF follows the requester's role, so an admin's PDF (the one shared with the client) contains every POC phone number and the photos the admin chose **not** to show |
+| **Client-safe PDF made by an Admin** | e.g. `"audience": "Client"` on `POST Report/report.php`: build the PDF as a Client would see it (Approved visits only, approved photos only, no POC / phone) | Since v1.22 the PDF has only approved normal photos for every role, but an admin's PDF still prints every POC name and phone number |
 | **Targets count** | Consider counting only **Approved** visits (today Pending counts too) | The client sees approved visits only, so their numbers and the target can differ |
-| **Collateral Count** (client, 27 Nov) | Admin enters it on the visit page under the unique student count. Suggested: `PUT Admin/visit_count.php` also accepts `collateral_count` (whole number) and `unique_person_count` becomes optional when only the collateral count changes; visits return `Collateral_Count` | Admin controls panel is built and sends `collateral_count`; until the server stores it, it won't show after a reload |
-| **Per-photo GPS** (Excel Photos sheet) | Not in v1.19. Accept each photo's own lat / lng / time (e.g. `normal_photos_gps` JSON in file order) and return `Latitude`, `Longitude`, `Taken_AT` per photo | Today the Excel Photos sheet uses the visit's GPS ("GPS from: Visit"); the exact spot is printed on every photo |
 | **Bulk approve** (optional) | Accept a list of `visit_id`s in one `PUT` | Approving hundreds sends one request each today |
