@@ -98,8 +98,7 @@ export default function VisitDetail({ visit, admin }) {
       {admin && <h2 className="mb-1 font-bold">Visit details</h2>}
       <dl className="divide-y divide-gray-100">
         {admin && <Row label="School">{visit.schoolName}</Row>}
-        <Row label="City">{visit.cityName}</Row>
-        {visit.district && <Row label="District">{visit.district}</Row>}
+        <Row label="District">{visit.cityName}</Row>
         {visit.village && <Row label="Village">{visit.village}</Row>}
         {visit.udise && <Row label="UDISE code">{visit.udise}</Row>}
         {visit.schoolType && <Row label="School type">{visit.schoolType}</Row>}
@@ -189,10 +188,8 @@ export default function VisitDetail({ visit, admin }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="min-w-0 space-y-6">
-        <div className="space-y-2">
-          <HeadcountSummary visit={visit} />
-          <CountCorrection visit={visit} />
-        </div>
+        <HeadcountSummary visit={visit} />
+        <CountCorrection visit={visit} />
         {headSection}
         {normalSection}
       </div>

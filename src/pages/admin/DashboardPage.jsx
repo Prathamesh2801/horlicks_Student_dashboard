@@ -53,14 +53,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <PageHeader title="Dashboard" subtitle={`School activity across all cities${loadedAt ? ` · updated ${formatTime(loadedAt)}` : ''}`} />
+      <PageHeader title="Dashboard" subtitle={`School activity across all districts${loadedAt ? ` · updated ${formatTime(loadedAt)}` : ''}`} />
 
       <TableToolbar table={table} hideSearch onRefresh={reload} refreshing={refreshing}>
         <PeriodFilter table={table} />
         <Select
           className="w-[calc(50%-0.25rem)] sm:w-40"
-          aria-label="City"
-          placeholder="All cities"
+          aria-label="District"
+          placeholder="All districts"
           value={table.state.city}
           onChange={(e) => table.set({ city: e.target.value })}
           options={cities.map((c) => ({ value: c, label: c }))}

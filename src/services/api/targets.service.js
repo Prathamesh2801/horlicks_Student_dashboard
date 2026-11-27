@@ -1,6 +1,6 @@
 import { api } from './client'
 
-// Server: Admin/target.php (see docs/SERVER_API.md → Admin · Targets). One visit target per city, each with its
+// Server: Admin/target.php (see docs/SERVER_API.md → Admin · Targets). One visit target per district (v1.21), each with its
 // own start and finish date. The server works out done, run-rate, needed rate, projected finish and status.
 // Admins only (Clients and Staff get 403).
 const TARGETS = '/Admin/target.php'
@@ -14,7 +14,7 @@ function toProgress(t) {
   const dayNo = t.Days_Elapsed ?? 0
   const totalDays = t.Start_Date && t.Finish_Date ? daysBetween(t.Start_Date, t.Finish_Date) + 1 : null
   return {
-    city: t.City ?? null,
+    city: t.District ?? null, // the district (the app keeps the name `city`)
     target: t.Target,
     done: t.Done,
     remaining: t.Remaining ?? Math.max(t.Target - t.Done, 0),
@@ -37,13 +37,13 @@ function toProgress(t) {
 // { asOf, overall (null when no city has a target), byCity: [...] }
 export async function getTargets() {
   const data = await api.get(TARGETS)
-  return { asOf: data.As_Of, overall: data.Overall ? toProgress(data.Overall) : null, byCity: (data.Cities ?? []).map(toProgress) }
+  return { asOf: data.As_Of, overall: data.Overall ? toProgress(data.Overall) : null, byCity: (data.Districts ?? []).map(toProgress) }
 }
 
 // Create (exists = false) or change a city's target. target = { visits, start, end } (dates YYYY-MM-DD).
 export async function saveCityTarget(city, { visits, start, end }, exists) {
-  const body = { city, target_visits: Number(visits), start_date: start, finish_date: end }
+  const body = { district: city, target_visits: Number(visits), start_date: start, finish_date: end }
   return exists ? api.put(TARGETS, body) : api.post(TARGETS, body)
 }
 
-export const removeCityTarget = (city) => api.delete(TARGETS, { params: { city } })
+export const removeCityTarget = (city) => api.delete(TARGETS, { params: { district: city } })

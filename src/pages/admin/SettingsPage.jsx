@@ -8,7 +8,7 @@ import { formatDateTime } from '../../utils/format'
 const HELP = {
   poc_contact: 'POC’s 10-digit mobile number',
   start_time: 'Recorded automatically when the form is opened',
-  udise: '11-digit school code',
+  udise: '15-digit school code',
 }
 
 function Switch({ checked, onChange, label, disabled }) {
@@ -29,10 +29,11 @@ function Switch({ checked, onChange, label, disabled }) {
 }
 
 // Admin: which fields the Ground Team visit form shows, and whether each is required (server: Admin/visit_form.php).
-// Date, city, school name, location and photos are always required.
+// Date, district, school name, location and photos are always required.
 export default function SettingsPage() {
   const { data, error, reload } = useAsync(getFormSettings)
   const [edits, setEdits] = useState({}) // field → { show, required } changed, not saved
+  const [upload, setUpload] = useState(null) // Upload button shown? (changed, not saved)
   const [saving, setSaving] = useState(false)
   const [result, setResult] = useState(null) // 'saved' | error message
 
@@ -44,11 +45,14 @@ export default function SettingsPage() {
     setEdits((e) => ({ ...e, [name]: { ...value(name), ...patch } }))
   }
   const changed = Object.keys(edits).filter((n) => edits[n].show !== data.form[n].show || edits[n].required !== data.form[n].required)
+  const uploadChanged = upload !== null && upload !== data.uploadButton
+  const changes = changed.length + (uploadChanged ? 1 : 0)
   const save = async () => {
     setSaving(true)
     try {
-      await saveFormSettings(Object.fromEntries(changed.map((n) => [n, edits[n]])))
+      await saveFormSettings(Object.fromEntries(changed.map((n) => [n, edits[n]])), uploadChanged ? upload : undefined)
       setEdits({})
+      setUpload(null)
       setResult('saved')
       reload()
     } catch (err) {
@@ -69,7 +73,7 @@ export default function SettingsPage() {
         <div className="p-5">
           <h2 className="font-bold">Visit form fields</h2>
           <p className="text-xs text-gray-500">
-            Date, city, school name, location and photos are always required.
+            Date, district, school name, location and photos are always required.
             {data.updatedBy && ` Last changed by ${data.updatedBy} · ${formatDateTime(data.updatedAt)}.`}
           </p>
         </div>
@@ -91,13 +95,31 @@ export default function SettingsPage() {
             </div>
           )
         })}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 bg-page/60 px-5 py-4">
+          <div className="mr-auto">
+            <p className="font-semibold">Upload button on the photos step</p>
+            <p className="text-xs text-gray-500">
+              Lets the Ground Team pick headcount photos from the phone’s gallery. Hidden = camera only. Normal photos are always camera
+              only.
+            </p>
+          </div>
+          <Switch
+            label={(upload ?? data.uploadButton) ? 'Shown' : 'Hidden'}
+            checked={upload ?? data.uploadButton}
+            onChange={(v) => {
+              setResult(null)
+              setUpload(v)
+            }}
+            disabled={offline}
+          />
+        </div>
         <div className="flex items-center justify-end gap-3 p-5">
           {result === 'saved' && (
             <span className="text-sm font-semibold text-green-700">Saved ✓ The Ground Team sees it on their next new visit.</span>
           )}
           {result && result !== 'saved' && <span className="text-sm text-accent-600">{result}</span>}
-          <Button onClick={save} loading={saving} disabled={offline || !changed.length}>
-            Save {changed.length ? `${changed.length} change${changed.length === 1 ? '' : 's'}` : ''}
+          <Button onClick={save} loading={saving} disabled={offline || !changes}>
+            Save {changes ? `${changes} change${changes === 1 ? '' : 's'}` : ''}
           </Button>
         </div>
       </Card>

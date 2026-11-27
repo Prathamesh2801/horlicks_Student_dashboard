@@ -42,7 +42,7 @@ export default function VisitsTable({ visits, table }) {
           <tr>
             {h('Date', 'date', 'px-5 py-3', true)}
             {h('School', 'school')}
-            {h('City', 'city')}
+            {h('District', 'city')}
             {h('Ground Team', 'staff', 'hidden px-3 py-3 lg:table-cell')}
             {h('Photos', 'photos', 'hidden px-3 py-3 xl:table-cell', true)}
             {h('Review', 'review')}

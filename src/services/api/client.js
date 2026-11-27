@@ -47,6 +47,7 @@ const FIELD_LABELS = {
   status: 'Status',
   visit_date: 'Date',
   city: 'City',
+  district: 'District',
   school_name: 'School name',
   latitude: 'Location',
   longitude: 'Location',
@@ -71,7 +72,10 @@ function toError(err) {
   }
   // Validation errors come as { Errors: { password: "Must be 8-72 characters" } }
   const fields = res?.data?.Errors
-  if (fields) message = Object.entries(fields).map(([k, v]) => `${FIELD_LABELS[k] ?? k}: ${v}`).join(' · ')
+  if (fields)
+    message = Object.entries(fields)
+      .map(([k, v]) => `${FIELD_LABELS[k] ?? k}: ${v}`)
+      .join(' · ')
   const error = new Error(message)
   error.status = res?.status
   error.fields = fields

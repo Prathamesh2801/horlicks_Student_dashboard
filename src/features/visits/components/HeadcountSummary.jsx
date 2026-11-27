@@ -25,9 +25,9 @@ export default function HeadcountSummary({ visit }) {
                 ? `${repeats ? `${formatNumber(visit.facesSeen)} faces in ${photos} · each child counted once` : `From ${photos}`}${failed ? ` · ${failed} could not be counted` : ''}`
                 : 'Counted by the AI when the visit is uploaded'}
           </p>
-          {visit.studentsCovered != null && (
+          {visit.collateralCount != null && (
             <p className="mt-2 flex w-fit rounded-lg bg-white/15 px-2.5 py-1 text-sm">
-              Students covered (Ground Team): <b className="ml-1">{formatNumber(visit.studentsCovered)}</b>
+              Collateral count: <b className="ml-1">{formatNumber(visit.collateralCount)}</b>
             </p>
           )}
           <VisitStatusBadge status={visit.status} className="mt-2" />

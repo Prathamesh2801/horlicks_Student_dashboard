@@ -5,9 +5,8 @@ import { api } from './client'
 const FORM = '/Admin/visit_form.php'
 const CACHE = 'visit-form-settings'
 
-// Fields an Admin can switch (server names), in form order.
+// Fields an Admin can switch (server names), in form order. District is always required (v1.21).
 export const SWITCHABLE = [
-  ['district', 'District'],
   ['village', 'Village'],
   ['udise', 'UDISE code'],
   ['school_type', 'School type'],
@@ -28,7 +27,8 @@ const cached = () => {
   }
 }
 
-// { form: { district: { show, required }, ... }, updatedBy, updatedAt }. Offline: the last copy, else the defaults.
+// { form: { village: { show, required }, ... }, uploadButton, updatedBy, updatedAt }. Offline: the last copy, else the defaults.
+// uploadButton (v1.20): whether the Ground Team sees the Upload (choose from gallery) button. Default shown.
 export async function getFormSettings() {
   try {
     const data = (await api.get(FORM)).Data
@@ -36,19 +36,25 @@ export async function getFormSettings() {
     const form = Object.fromEntries(
       SWITCHABLE.map(([name]) => [name, { show: byName[name]?.Show ?? true, required: byName[name]?.Required ?? true }]),
     )
+    const uploadButton = data.Upload_Button?.Show ?? true
     try {
-      localStorage.setItem(CACHE, JSON.stringify(form))
+      localStorage.setItem(CACHE, JSON.stringify({ form, uploadButton }))
     } catch {
       // storage blocked
     }
-    return { form, updatedBy: data.Updated_By ?? null, updatedAt: data.Updated_AT ? data.Updated_AT.replace(' ', 'T') : null }
+    return { form, uploadButton, updatedBy: data.Updated_By ?? null, updatedAt: data.Updated_AT ? data.Updated_AT.replace(' ', 'T') : null }
   } catch {
-    return { form: cached() ?? DEFAULT_FORM, offline: true }
+    const c = cached()
+    return { form: c?.form ?? DEFAULT_FORM, uploadButton: c?.uploadButton ?? true, offline: true }
   }
 }
 
-// changes: { district: { show, required }, ... } (only what changed). Hidden also means not required.
-export async function saveFormSettings(changes) {
+// changes: { village: { show, required }, ... } (only what changed; hidden also means not required).
+// uploadButton: true / false, or undefined to leave it as it is.
+export async function saveFormSettings(changes, uploadButton) {
   const fields = Object.fromEntries(Object.entries(changes).map(([name, f]) => [name, { show: f.show, required: f.show && f.required }]))
-  await api.put(FORM, { fields })
+  await api.put(FORM, {
+    ...(Object.keys(fields).length ? { fields } : {}),
+    ...(uploadButton === undefined ? {} : { upload_button: { show: uploadButton } }),
+  })
 }

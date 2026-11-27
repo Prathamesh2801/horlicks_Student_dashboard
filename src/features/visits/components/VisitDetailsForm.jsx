@@ -5,7 +5,7 @@ import { Button, Card, Input, Select, Spinner } from '../../../components/ui'
 import { useGeolocation } from '../../../hooks/useGeolocation'
 import { CLASS_CATEGORIES, SCHOOL_TYPES } from '../../../constants/visit'
 import { DEFAULT_FORM, getFormSettings } from '../../../services/api/settings.service'
-import { getCities, getDistricts } from '../../../services/api/visits.service'
+import { getDistricts } from '../../../services/api/visits.service'
 import { formatCoords, formatTime, todayISO } from '../../../utils/format'
 
 function LocationBox({ geo, onRetry }) {
@@ -36,12 +36,11 @@ function LocationBox({ geo, onRetry }) {
   )
 }
 
-// Step 1 of a visit: Date, City, District, Village, UDISE, School name, School type, Class category, POC name + contact,
+// Step 1 of a visit: Date, District, Village, UDISE, School name, School type, Class category, POC name + contact,
 // GPS. Lists come from the server (cached for offline use); the Admin's settings hide fields or make them optional.
 export default function VisitDetailsForm({ onSubmit, submitting }) {
   const [form, setForm] = useState({
     date: todayISO(),
-    city: '',
     district: '',
     village: '',
     udise: '',
@@ -53,16 +52,14 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   })
   // Visit Start Timestamp: when the form was opened (not when it's submitted).
   const [startedAt] = useState(() => new Date().toISOString())
-  const [cities, setCities] = useState([])
   const [districts, setDistricts] = useState([])
-  const [citiesError, setCitiesError] = useState(null)
+  const [districtsError, setDistrictsError] = useState(null)
   const [fields, setFields] = useState(DEFAULT_FORM) // admin settings: which fields are shown / required
   const geo = useGeolocation()
   const { locate } = geo
 
   useEffect(() => {
-    getCities().then(setCities, (e) => setCitiesError(e.message))
-    getDistricts().then(setDistricts)
+    getDistricts().then(setDistricts, (e) => setDistrictsError(e.message))
     getFormSettings().then((r) => setFields(r.form))
     locate().catch(() => {})
   }, [locate])
@@ -70,16 +67,15 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const digits = (key, n) => (e) => setForm((f) => ({ ...f, [key]: e.target.value.replace(/\D/g, '').slice(0, n) }))
   const contactValid = /^[6-9]\d{9}$/.test(form.pocContact)
-  const udiseOk = /^\d{11}$/.test(form.udise) // UDISE+ school codes are 11 digits
+  const udiseOk = /^\d{15}$/.test(form.udise) // UDISE code: 15 digits (client, 27 Nov)
   // Admin settings (server visit_form.php): hidden = not asked; optional = may be empty, but valid if filled.
   const shown = (name) => fields[name].show
   const req = (name) => fields[name].show && fields[name].required
   const ok = (name, filled, valid = true) => !shown(name) || (filled ? valid : !req(name))
   const ready =
     form.date &&
-    form.city &&
+    form.district &&
     form.schoolName.trim().length >= 2 &&
-    ok('district', !!form.district) &&
     ok('village', !!form.village.trim(), form.village.trim().length >= 2) &&
     ok('udise', !!form.udise, udiseOk) &&
     ok('school_type', !!form.schoolType) &&
@@ -87,6 +83,18 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
     ok('poc_name', !!form.pocName.trim(), form.pocName.trim().length >= 2) &&
     ok('poc_contact', !!form.pocContact, contactValid) &&
     geo.coords
+  // What still stops "Continue", in form order (shown above the button).
+  const missing = [
+    !form.district && 'District',
+    !ok('village', !!form.village.trim(), form.village.trim().length >= 2) && 'Village',
+    !ok('udise', !!form.udise, udiseOk) && 'UDISE code',
+    form.schoolName.trim().length < 2 && 'School name',
+    !ok('school_type', !!form.schoolType) && 'School type',
+    !ok('class_category', !!form.classCategory) && 'Class category',
+    !ok('poc_name', !!form.pocName.trim(), form.pocName.trim().length >= 2) && 'POC name',
+    !ok('poc_contact', !!form.pocContact, contactValid) && 'Contact number',
+    !geo.coords && 'Location',
+  ].filter(Boolean)
   const optional = (name, label) => (req(name) ? label : `${label} (optional)`)
 
   const handleSubmit = (e) => {
@@ -96,7 +104,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
     const only = (name, v) => (shown(name) ? v : '')
     onSubmit({
       ...form,
-      district: only('district', form.district),
+      city: form.district, // drafts and the photo geo-tag use `city` for the district
       village: only('village', form.village.trim()),
       udise: only('udise', form.udise),
       schoolType: only('school_type', form.schoolType),
@@ -116,24 +124,14 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
       <Card className="space-y-4 p-5">
         <Input label="Date" type="date" value={form.date} max={todayISO()} onChange={set('date')} required />
         <Select
-          label="City"
-          placeholder="Select city"
-          hint={citiesError ? `Couldn’t load cities: ${citiesError} Connect to the internet once.` : 'From the programme’s city list'}
-          value={form.city}
-          onChange={set('city')}
-          options={cities.map((c) => ({ value: c, label: c }))}
+          label="District"
+          placeholder="Select district"
+          hint={districtsError ? `Couldn’t load districts: ${districtsError} Connect to the internet once.` : undefined}
+          value={form.district}
+          onChange={set('district')}
+          options={districts.map((d) => ({ value: d, label: d }))}
           required
         />
-        {shown('district') && (
-          <Select
-            label={optional('district', 'District')}
-            placeholder="Select district"
-            value={form.district}
-            onChange={set('district')}
-            options={districts.map((d) => ({ value: d, label: d }))}
-            required={req('district')}
-          />
-        )}
         {shown('village') && (
           <Input
             label={optional('village', 'Village')}
@@ -149,12 +147,12 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
           <Input
             label={optional('udise', 'UDISE code')}
             inputMode="numeric"
-            placeholder="11-digit school code"
+            placeholder="15-digit school code"
             value={form.udise}
-            onChange={digits('udise', 11)}
-            maxLength={11}
+            onChange={digits('udise', 15)}
+            maxLength={15}
             autoComplete="off"
-            hint={form.udise && !udiseOk ? `${11 - form.udise.length} more digits` : undefined}
+            error={form.udise && !udiseOk ? `${15 - form.udise.length} more digits needed (UDISE is 15 digits)` : undefined}
             required={req('udise')}
           />
         )}
@@ -213,7 +211,7 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
             onChange={digits('pocContact', 10)}
             maxLength={10}
             autoComplete="off"
-            hint={
+            error={
               form.pocContact && !contactValid
                 ? form.pocContact.length < 10
                   ? `${10 - form.pocContact.length} more digits`
@@ -228,6 +226,11 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
       </Card>
 
       <BottomBar>
+        {missing.length > 0 && (
+          <p className="mb-2 text-center text-xs text-gray-600">
+            To continue, fill or fix: <b className="text-red-600">{missing.join(', ')}</b>
+          </p>
+        )}
         <Button type="submit" size="xl" className="w-full" disabled={!ready} loading={submitting}>
           Continue to photos
         </Button>

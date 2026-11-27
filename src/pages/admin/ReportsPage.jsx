@@ -133,8 +133,8 @@ export default function ReportsPage() {
             <PeriodFilter table={table} />
             <Select
               className="w-[calc(50%-0.25rem)] sm:w-40"
-              aria-label="City"
-              placeholder="All cities"
+              aria-label="District"
+              placeholder="All districts"
               value={table.state.city}
               onChange={(e) => table.set({ city: e.target.value })}
               options={cities.map((c) => ({ value: c, label: c }))}
@@ -207,7 +207,7 @@ export default function ReportsPage() {
                     </th>
                     <th className="px-3 py-3">Date</th>
                     <th className="px-3 py-3">School</th>
-                    <th className="px-3 py-3">City</th>
+                    <th className="px-3 py-3">District</th>
                     <th className="px-3 py-3">Ground Team</th>
                     <th className="px-3 py-3">Students</th>
                     <th className="px-3 py-3">Photos shown</th>

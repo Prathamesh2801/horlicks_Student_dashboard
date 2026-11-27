@@ -29,8 +29,8 @@ export default function KpiTiles({ stats, period, client, targetPct }) {
           tone: 'bg-amber-50 text-amber-600',
         }
       : {
-          label: 'Cities with visits',
-          sub: `of ${formatNumber(stats.cityCount)} cities`,
+          label: 'Districts with visits',
+          sub: `of ${formatNumber(stats.cityCount)} districts`,
           value: formatNumber(stats.activeCities),
           icon: MdLocationCity,
           tone: 'bg-amber-50 text-amber-600',

@@ -7,7 +7,7 @@ export default function CityChart({ rows, period }) {
   const max = Math.max(1, ...rows.map((r) => r.visits))
   return (
     <Card className="p-5">
-      <h2 className="font-bold">Visits by city</h2>
+      <h2 className="font-bold">Visits by district</h2>
       <p className="text-xs text-gray-500">{period}</p>
       {!rows.some((r) => r.visits) ? (
         <p className="py-16 text-center text-sm text-gray-500">No visits in this period yet.</p>

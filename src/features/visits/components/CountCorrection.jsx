@@ -1,55 +1,67 @@
 import { useState } from 'react'
-import { MdEdit } from 'react-icons/md'
 import { Button, Card, Input } from '../../../components/ui'
 import { correctCount, getCountHistory } from '../../../services/api/visits.service'
 import { formatDateTime, formatNumber } from '../../../utils/format'
 
-// Admin: correct the unique student count when the AI missed people (server Admin/visit_count.php).
-// Every change is kept with who, when and why; the AI won't overwrite it ("Count again" does).
+const digits = (v) => v.replace(/\D/g, '').slice(0, 6)
+
+// Admin control panel on a visit: correct the unique student count (when the AI missed people) and enter the
+// Collateral Count. Server: Admin/visit_count.php — every change is kept with who, when and why; the AI keeps a
+// corrected count ("Count again" replaces it).
 export default function CountCorrection({ visit }) {
-  const [open, setOpen] = useState(false)
-  const [count, setCount] = useState('')
+  const [count, setCount] = useState(null) // typed, not saved (null = unchanged)
+  const [collateral, setCollateral] = useState(null)
   const [reason, setReason] = useState('')
   const [history, setHistory] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
+  const [result, setResult] = useState(null) // 'saved' | error message
 
-  const show = async () => {
-    setOpen(true)
-    setCount(visit.headcount == null ? '' : String(visit.headcount))
-    setReason('')
-    setError(null)
-    setHistory(await getCountHistory(visit.id).catch(() => []))
-  }
-  const valid = count !== '' && Number(count) !== visit.headcount
+  const countText = count ?? (visit.headcount == null ? '' : String(visit.headcount))
+  const collateralText = collateral ?? (visit.collateralCount == null ? '' : String(visit.collateralCount))
+  const countChanged = countText !== '' && Number(countText) !== visit.headcount
+  const collateralChanged = collateralText !== '' && Number(collateralText) !== visit.collateralCount
+
   const save = async () => {
     setSaving(true)
-    setError(null)
+    setResult(null)
     try {
-      await correctCount(visit.id, count, reason.trim())
-      setOpen(false)
+      await correctCount(visit.id, {
+        count: countChanged ? countText : null,
+        collateral: collateralChanged ? collateralText : null,
+        reason: reason.trim(),
+      })
+      setCount(null)
+      setCollateral(null)
+      setReason('')
+      setResult('saved')
+      if (history) setHistory(await getCountHistory(visit.id).catch(() => history))
     } catch (err) {
-      setError(err.message)
+      setResult(err.message)
     }
     setSaving(false)
   }
-
-  if (!open)
-    return (
-      <button type="button" onClick={show} className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline">
-        <MdEdit className="size-4" /> Correct the student count
-      </button>
-    )
+  const showHistory = async () => setHistory(await getCountHistory(visit.id).catch(() => []))
 
   return (
-    <Card className="space-y-3 p-4">
-      <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+    <Card className="space-y-3 p-5">
+      <div>
+        <h2 className="font-bold">Admin controls</h2>
+        <p className="text-xs text-gray-500">Correct the student count if the AI missed people, and enter the collateral count.</p>
+      </div>
+      <div className="grid gap-3 sm:max-w-sm">
         <Input
           label="Unique students"
           inputMode="numeric"
-          value={count}
-          onChange={(e) => setCount(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          hint={visit.headcount != null ? `AI / current: ${formatNumber(visit.headcount)}` : undefined}
+          value={countText}
+          onChange={(e) => setCount(digits(e.target.value))}
+          hint={visit.headcountManual ? 'Corrected by an Admin' : 'Counted by the AI'}
+        />
+        <Input
+          label="Collateral Count"
+          inputMode="numeric"
+          placeholder="e.g. 12"
+          value={collateralText}
+          onChange={(e) => setCollateral(digits(e.target.value))}
         />
         <Input
           label="Reason (optional)"
@@ -59,26 +71,24 @@ export default function CountCorrection({ visit }) {
           maxLength={500}
         />
       </div>
-      {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-      <div className="flex justify-end gap-2">
-        <Button variant="secondary" onClick={() => setOpen(false)}>
-          Cancel
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={save} loading={saving} disabled={!countChanged && !collateralChanged}>
+          Save
         </Button>
-        <Button onClick={save} loading={saving} disabled={!valid}>
-          Save count
-        </Button>
+        {result === 'saved' && <span className="text-sm font-semibold text-green-700">Saved ✓</span>}
+        {result && result !== 'saved' && <span className="text-sm text-accent-600">{result}</span>}
+        {!history && (
+          <button type="button" onClick={showHistory} className="ml-auto text-sm font-semibold text-brand-700 hover:underline">
+            Show changes
+          </button>
+        )}
       </div>
-      {history?.length > 0 && (
-        <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Changes</p>
-          <ul className="space-y-1 text-sm">
+      {history &&
+        (history.length ? (
+          <ul className="space-y-1 border-t border-gray-100 pt-3 text-sm">
             {history.map((h) => (
               <li key={h.id} className="text-gray-700">
-                {h.from == null ? '—' : formatNumber(h.from)} → <b>{formatNumber(h.to)}</b>
+                Students {h.from == null ? '—' : formatNumber(h.from)} → <b>{formatNumber(h.to)}</b>
                 <span className="text-gray-500">
                   {' '}
                   · {h.by} · {formatDateTime(h.at)}
@@ -87,8 +97,9 @@ export default function CountCorrection({ visit }) {
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        ) : (
+          <p className="border-t border-gray-100 pt-3 text-sm text-gray-500">No changes yet.</p>
+        ))}
     </Card>
   )
 }

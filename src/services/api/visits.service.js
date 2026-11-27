@@ -7,6 +7,7 @@ import { notifyChange } from './pending.service'
 // only the normal photos an admin approved).
 const VISITS = '/Staff/visit.php'
 const PAGE_LIMIT = 100 // server max per page
+const NOT_SET = 'Not set' // old visits saved with a city only (v1.21)
 
 // Visit review: server Status ↔ app review
 const REVIEW_FROM = { Pending: 'waiting', Approved: 'approved', Rejected: 'rejected' }
@@ -49,9 +50,10 @@ function toVisit(v) {
   return {
     id: String(v.Visit_ID),
     date: v.Visit_Date,
-    city: v.City,
+    // v1.21: District replaced City. The app keeps the name `city` for it (filters, charts, targets, map).
+    city: v.District ?? NOT_SET,
     district: v.District ?? null,
-    cityName: v.City,
+    cityName: v.District ?? NOT_SET,
     schoolName: v.School_Name,
     village: v.Village ?? null,
     udise: v.UDISE ?? null,
@@ -70,7 +72,7 @@ function toVisit(v) {
     // Main number: each child once, even when they're in several class photos (older visits: face total).
     headcount: v.Unique_Person_Count ?? v.Total_Face_Count ?? null,
     headcountManual: Boolean(v.Unique_Count_Manual), // an admin corrected the AI's number
-    studentsCovered: v.Students_Covered ?? null, // typed by the Ground Team for the session (null until the server stores it)
+    collateralCount: v.Collateral_Count ?? null, // entered by an Admin on the visit page (client feedback 27 Nov)
     facesSeen: v.Total_Face_Count ?? null, // faces in all AI photos added up, repeats included
     aiFailed: ai.filter((p) => p.ai.status === 'failed').length,
     aiCounting: v.AI_Count_Status === 'Pending' || v.AI_Count_Status === 'Working', // counts arrive in a few minutes
@@ -93,7 +95,7 @@ function toVisit(v) {
 }
 
 // ---- dropdown lists from the server (kept on the device for offline drafts) ----
-// The visit list response carries Cities and Options (Districts, Class_Categories, School_Types, Photo_Categories).
+// The visit list response carries Districts (with visit counts) and Options (Districts, Class_Categories, School_Types, …).
 const remember = (key, list) => {
   try {
     localStorage.setItem(key, JSON.stringify(list))
@@ -108,7 +110,6 @@ const cached = (key) => {
     return null
   }
 }
-const names = (list, field) => (list ?? []).map((x) => (typeof x === 'string' ? x : x[field])).filter(Boolean)
 
 async function serverList(key, read) {
   try {
@@ -121,7 +122,8 @@ async function serverList(key, read) {
   }
 }
 
-export const getCities = () => serverList('cities-cache', (d) => names(d.Cities, 'City'))
+// The programme's districts (Options.Districts). `getCities` is the same list for the app's district filters.
+export const getCities = () => getDistricts()
 // Offline with nothing cached: the client's list.
 export const getDistricts = () =>
   serverList('districts-cache', (d) => d.Options?.Districts ?? []).then(
@@ -131,12 +133,12 @@ export const getDistricts = () =>
 
 // ---- visits ----
 
-// All visits matching the filters, newest first. Filters: { city, dateFrom, dateTo, username }.
+// All visits matching the filters, newest first. Filters: { city (= district), dateFrom, dateTo, username }.
 // ponytail: loads every page (100 per request); fine for a few thousand visits. Ask the server for
 // search + stats endpoints if lists get slow.
 export async function listVisits({ city, dateFrom, dateTo, username } = {}) {
   const params = { limit: PAGE_LIMIT, offset: 0 }
-  if (city) params.city = city
+  if (city) params.district = city
   if (dateFrom) params.date_from = dateFrom
   if (dateTo) params.date_to = dateTo
   if (username) params.username = username
@@ -161,14 +163,12 @@ export async function getVisit(id) {
 export async function createVisit(
   {
     date,
-    city,
     district,
     village,
     udise,
     schoolName,
     schoolType,
     classCategory,
-    studentsCovered,
     pocName,
     pocContact,
     lat,
@@ -182,7 +182,6 @@ export async function createVisit(
 ) {
   const form = new FormData()
   form.append('visit_date', date)
-  form.append('city', city)
   form.append('school_name', schoolName)
   form.append('latitude', String(lat))
   form.append('longitude', String(lng))
@@ -199,8 +198,6 @@ export async function createVisit(
       startedAt && new Date(startedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }),
   }
   Object.entries(optional).forEach(([k, v]) => v && form.append(k, v))
-  // ponytail: not on the server yet (docs/SERVER_API.md → Still needed); the server ignores it until then.
-  if (studentsCovered) form.append('students_covered', String(studentsCovered))
   // Normal photos go under their category: normal_photos[reporting][] … (same order as the draft's photos).
   const normalMeta = (photos ?? []).filter((p) => p.type === 'normal')
   normalPhotos.forEach((blob, i) => {
@@ -274,8 +271,15 @@ export async function getCountHistory(visitId) {
   return (data.Data?.History ?? []).map(toCountChange)
 }
 
-// Replace the AI's unique student count (the AI worker keeps it; "Count again" replaces it).
-export async function correctCount(visitId, count, reason) {
-  await api.put(COUNTS, { visit_id: Number(visitId), unique_person_count: Number(count), reason: reason || undefined })
+// Admin control panel: replace the AI's unique student count (the AI worker keeps it; "Count again" replaces it)
+// and / or set the Collateral Count. Pass only what changed (null = leave it).
+// ponytail: collateral_count is not on the server yet (docs/SERVER_API.md → Still needed).
+export async function correctCount(visitId, { count, collateral, reason }) {
+  await api.put(COUNTS, {
+    visit_id: Number(visitId),
+    ...(count == null ? {} : { unique_person_count: Number(count) }),
+    ...(collateral == null ? {} : { collateral_count: Number(collateral) }),
+    reason: reason || undefined,
+  })
   notifyChange()
 }

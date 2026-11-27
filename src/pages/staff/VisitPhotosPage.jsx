@@ -1,15 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { motion } from 'framer-motion'
 import { MdCloudDone, MdCloudOff, MdDeleteOutline, MdErrorOutline, MdGroups, MdPhotoCamera, MdSchedule, MdUpload } from 'react-icons/md'
 import BottomBar from '../../components/common/BottomBar'
 import TopBar from '../../components/common/TopBar'
-import { Button, EmptyState, Input, Modal, Spinner } from '../../components/ui'
+import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
 import { MAX_PHOTOS, PHOTO_CATEGORIES, PHOTO_TYPES } from '../../constants/visit'
 import { PhotoGrid, useDraft } from '../../features/visits'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { addPhoto, deleteDraft, deletePhoto, updateDraft } from '../../services/drafts/draftStore'
 import { uploadDraft } from '../../services/drafts/uploadQueue'
+import { getFormSettings } from '../../services/api/settings.service'
 import { compressImage, geoStamp } from '../../utils/compressImage'
 
 // Upload progress dialog content.
@@ -57,8 +58,11 @@ export default function VisitPhotosPage() {
   const [upload, setUpload] = useState(null) // { phase: 'upload' | 'counting' | 'queued' | 'error', progress, message }
   const [message, setMessage] = useState(null)
   const [category, setCategory] = useState('') // normal photos: chosen before taking the photo
-  const [covered, setCovered] = useState(null) // typed value (saved to the draft as you type)
+  const [canUpload, setCanUpload] = useState(true) // Admin setting: Upload button (gallery) for headcount photos
   const cameraRef = useRef(null)
+  useEffect(() => {
+    getFormSettings().then((r) => setCanUpload(r.uploadButton))
+  }, [])
   const uploadRef = useRef(null)
 
   if (error) return <p className="pt-6 text-red-600">{error}</p>
@@ -88,14 +92,6 @@ export default function VisitPhotosPage() {
   const max = MAX_PHOTOS[tab]
   const full = photos[tab].length + adding[tab] >= max
   const kind = tab === 'normal' ? 'normal' : 'headcount'
-  // Students covered in this session: typed by the Ground Team, shown next to the AI count.
-  const coveredText = covered ?? (draft?.studentsCovered ? String(draft.studentsCovered) : '')
-  const setCoveredText = (e) => {
-    const v = e.target.value.replace(/\D/g, '').slice(0, 4)
-    setCovered(v)
-    updateDraft(id, { studentsCovered: v ? Number(v) : null })
-  }
-  const coveredOk = Number(coveredText) > 0
 
   const handleFiles = async (e) => {
     const room = max - photos[tab].length - adding[tab]
@@ -246,19 +242,6 @@ export default function VisitPhotosPage() {
           </div>
         </div>
       )}
-      {tab === 'headcount' && (
-        <Input
-          className="mt-3"
-          label="Students covered in this session"
-          inputMode="numeric"
-          placeholder="e.g. 45"
-          value={coveredText}
-          onChange={setCoveredText}
-          maxLength={4}
-          hint="Count the students who attended. The AI count from the photos is shown next to it."
-          required
-        />
-      )}
 
       {tab === 'normal' ? (
         // Camera only: the geo-tag must be where and when the photo is taken.
@@ -266,13 +249,15 @@ export default function VisitPhotosPage() {
           <MdPhotoCamera className="size-5" /> {category ? `Take photo · ${category}` : 'Choose a category first'}
         </Button>
       ) : (
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className={`mt-3 grid gap-3 ${canUpload ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <Button onClick={() => cameraRef.current.click()} size="lg" disabled={full}>
             <MdPhotoCamera className="size-5" /> Take photo
           </Button>
-          <Button variant="secondary" onClick={() => uploadRef.current.click()} size="lg" disabled={full}>
-            <MdUpload className="size-5" /> Upload
-          </Button>
+          {canUpload && (
+            <Button variant="secondary" onClick={() => uploadRef.current.click()} size="lg" disabled={full}>
+              <MdUpload className="size-5" /> Upload
+            </Button>
+          )}
         </div>
       )}
       <p className={`mt-1.5 text-right text-[11px] ${full ? 'font-semibold text-amber-700' : 'text-gray-500'}`}>
@@ -295,7 +280,11 @@ export default function VisitPhotosPage() {
           editable
           pending={adding[tab]}
           onDelete={setConfirm}
-          onAdd={full || (tab === 'normal' && !category) ? undefined : () => (tab === 'normal' ? cameraRef : uploadRef).current.click()}
+          onAdd={
+            full || (tab === 'normal' && !category)
+              ? undefined
+              : () => (tab === 'normal' || !canUpload ? cameraRef : uploadRef).current.click()
+          }
           className="grid-cols-2"
         />
       </div>
@@ -304,7 +293,6 @@ export default function VisitPhotosPage() {
         <p className="mb-1 text-center text-xs text-gray-600">
           {photos.normal.length} normal · {photos.headcount.length} headcount photos
           {!draft?.photos.length && ' · add at least one photo'}
-          {!coveredOk && ' · enter students covered (Headcount tab)'}
         </p>
         <p className="mb-2 flex items-center justify-center gap-1 text-center text-[11px] text-green-700">
           <MdCloudDone className="size-3.5" /> Saved on this phone. Works offline; you can close the app and continue later.
@@ -314,7 +302,7 @@ export default function VisitPhotosPage() {
           size="xl"
           className="w-full"
           onClick={() => setConfirm('submit')}
-          disabled={!draft?.photos.length || !coveredOk || stillAdding}
+          disabled={!draft?.photos.length || stillAdding}
         >
           {stillAdding ? 'Adding photos…' : queued ? 'Upload now' : 'Submit & count students'}
         </Button>

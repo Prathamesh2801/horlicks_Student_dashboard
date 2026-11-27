@@ -40,14 +40,14 @@ function Stat({ label, value, extra }) {
   )
 }
 
-// Target vs achievement: overall + by city, from the server (useCampaign). client = no run-rate / deadline columns.
+// Target vs achievement: overall + by district, from the server (useCampaign). client = no run-rate / deadline columns.
 export default function TargetCard({ data, client, editTo }) {
   const o = data.overall
   return (
     <Card className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="font-bold">{client ? 'Target vs achievement by city' : 'Target vs achievement'}</h2>
+          <h2 className="font-bold">{client ? 'Target vs achievement by district' : 'Target vs achievement'}</h2>
           <p className="text-xs text-gray-500">
             Campaign {formatDate(o.start)} – {formatDate(o.end)}
             {o.totalDays && o.dayNo > 0 && ` · day ${o.dayNo} of ${o.totalDays}`}
@@ -92,12 +92,12 @@ export default function TargetCard({ data, client, editTo }) {
 
       {data.byCity.length > 0 && (
         <>
-          <h3 className="mt-6 text-sm font-bold">By city</h3>
+          <h3 className="mt-6 text-sm font-bold">By district</h3>
           <div className="-mx-5 mt-2 overflow-x-auto">
             <table className="w-full min-w-[42rem] text-left text-sm">
               <thead className="bg-page text-xs font-semibold uppercase tracking-wide text-gray-500">
                 <tr>
-                  <th className="px-5 py-2.5">City</th>
+                  <th className="px-5 py-2.5">District</th>
                   <th className="w-1/3 px-3 py-2.5">Progress</th>
                   <th className="px-3 py-2.5">Visits / target</th>
                   <th className="px-3 py-2.5">%</th>

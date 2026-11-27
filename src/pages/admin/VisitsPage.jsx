@@ -18,13 +18,13 @@ const SORT_OPTIONS = [
   { value: 'date', label: 'Oldest first' },
   { value: '-count', label: 'Most students' },
   { value: 'school', label: 'School A–Z' },
-  { value: 'city', label: 'City A–Z' },
+  { value: 'city', label: 'District A–Z' },
   { value: 'staff', label: 'Ground Team A–Z' },
   { value: 'review', label: 'Review status' },
 ]
 
 
-// City + period are filtered by the server; search, staff, AI, review, sorting and paging happen here.
+// District + period are filtered by the server; search, staff, AI, review, sorting and paging happen here.
 // Everything is kept in the URL, so Back from a visit returns to the same view.
 export default function VisitsPage() {
   const [params] = useSearchParams()
@@ -94,11 +94,11 @@ export default function VisitsPage() {
         }
       />
 
-      <TableToolbar table={table} placeholder="Search school, Ground Team, city or POC" onRefresh={reload} refreshing={refreshing} sortOptions={SORT_OPTIONS}>
+      <TableToolbar table={table} placeholder="Search school, Ground Team, district or POC" onRefresh={reload} refreshing={refreshing} sortOptions={SORT_OPTIONS}>
         <Select
           className="w-[calc(50%-0.25rem)] sm:w-40"
-          aria-label="City"
-          placeholder="All cities"
+          aria-label="District"
+          placeholder="All districts"
           value={table.state.city}
           onChange={(e) => table.set({ city: e.target.value })}
           options={cities.map((c) => ({ value: c, label: c }))}

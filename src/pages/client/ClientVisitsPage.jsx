@@ -30,7 +30,7 @@ export default function ClientVisitsPage() {
     matches: (v, s) => !s.audit || auditOf(v) === s.audit,
   })
   const rows = table.filtered ?? []
-  const covered = rows.reduce((s, v) => s + (v.studentsCovered ?? 0), 0)
+  const students = rows.reduce((s, v) => s + (v.headcount ?? 0), 0)
   const audits = Object.fromEntries(Object.keys(AUDIT).map((k) => [k, rows.filter((v) => auditOf(v) === k).length]))
   const open = (v) => navigate(`/client/visits/${v.id}`)
   const h = (label, field, className, firstDesc) => (
@@ -56,7 +56,7 @@ export default function ClientVisitsPage() {
       {data && (
         <div className="grid gap-3 sm:grid-cols-4">
           {[
-            ['Students covered', covered, 'recorded at each session'],
+            ['Students reached', students],
             ['Audit approved', audits.approved],
             ['Audit rejected', audits.rejected],
             ['Not audited', audits.none],
@@ -84,7 +84,7 @@ export default function ClientVisitsPage() {
                   <tr>
                     {h('Date', 'date', 'px-5 py-3', true)}
                     {h('School', 'school')}
-                    {h('City', 'city')}
+                    {h('District', 'city')}
                     {h('Students', 'count', undefined, true)}
                     {h('Photos', 'photos', undefined, true)}
                     {h('Audit', 'audit')}

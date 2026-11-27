@@ -75,13 +75,13 @@ export default function TargetPage() {
     <div className="space-y-5">
       <PageHeader
         title="Target"
-        subtitle="A visit target for each city with its own start and finish date. The overall target is the total."
+        subtitle="A visit target for each district with its own start and finish date. The overall target is the total."
       />
 
       <Card className="flex flex-wrap items-end gap-3 p-5">
         <div className="mr-auto">
-          <h2 className="font-bold">Same dates for every city</h2>
-          <p className="text-xs text-gray-500">Fills the dates of all cities that have a target. Then press Save.</p>
+          <h2 className="font-bold">Same dates for every district</h2>
+          <p className="text-xs text-gray-500">Fills the dates of all districts that have a target. Then press Save.</p>
         </div>
         <Input
           label="Start"
@@ -108,7 +108,7 @@ export default function TargetPage() {
           <table className="w-full min-w-[46rem] text-left text-sm">
             <thead className="bg-page text-xs font-semibold uppercase tracking-wide text-gray-500">
               <tr>
-                <th className="px-5 py-3">City</th>
+                <th className="px-5 py-3">District</th>
                 <th className="px-3 py-3">Target (visits)</th>
                 <th className="px-3 py-3">Start</th>
                 <th className="px-3 py-3">Finish</th>
