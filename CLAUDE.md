@@ -28,7 +28,7 @@ Everything is in `src/config/config.js` and `src/config/brand.js`.
 | `BASE_URL_SERVER` | `http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API` | `https://poshansepragati.theeventpics.com/API` |
 | `API_PROXY` | `"/server-api"` (http API, so it goes through the vite proxy) | `''` (https API with CORS, called directly) |
 
-- **Before a production build**, switch both values to the production column. Main currently points to the local server.
+- **Before a production build**, switch both values to the production column. Main currently points to the **production** API (since 27 Nov 2026).
 - The `192.168.1.88` server is reachable only on the office LAN. At home, use the production API, or ask for access.
 - `brand.js` sets the active brand: `{ id: 'horlicks', company: 'Horlicks', fullName: 'Horlicks School Activity' }`.
   - The app name, logo (`src/assets/brand/<id>-logo*.svg`), icons (`public/brand/<id>/`), PWA manifest name and `<title>` all follow it.
