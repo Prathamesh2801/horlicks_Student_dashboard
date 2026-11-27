@@ -1,4 +1,6 @@
 // All app settings live here (no .env files).
+import { brand } from './brand'
+
 export const config = {
   // Horlicks School Tribes PHP API. Reference: docs/SERVER_API.md
   BASE_URL_SERVER:
@@ -10,7 +12,7 @@ export const config = {
   // http API (an https page can't call http). `npm run dev` / `preview` forward it; production: docs/SERVER_API.md → Deploying.
   API_PROXY: "/server-api",
 
-  appName: "My Workbench",
+  appName: brand.fullName, // shown on sign-in, the Ground Team home and as the installed app name
   // Schools in the programme, for the "x% of 6,000" coverage figure.
   totalSchools: 6000,
 };

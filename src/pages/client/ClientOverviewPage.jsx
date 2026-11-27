@@ -28,7 +28,7 @@ export default function ClientOverviewPage() {
           {campaign.progress && <TargetCard data={campaign.progress} client />}
           <div className="grid gap-5 lg:grid-cols-2">
             <TrendChart visits={data} note="Per week" />
-            <CityChart rows={stats.byCity} period="School visits per city" />
+            <CityChart rows={stats.byCity} period="School visits per district" />
           </div>
           <Averages stats={stats} />
         </>

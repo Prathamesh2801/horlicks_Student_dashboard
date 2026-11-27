@@ -97,7 +97,7 @@ export default function DashboardPage() {
               <Card className="flex flex-wrap items-center gap-3 p-5">
                 <MdFlag className="size-6 text-brand-700" />
                 <p className="flex-1 text-sm text-gray-600">
-                  No campaign target yet. Set a target for each city to track progress, run-rate and projected finish.
+                  No campaign target yet. Set a target for each district to track progress, run-rate and projected finish.
                 </p>
                 <Link to="/admin/target" className="text-sm font-semibold text-brand-700 hover:underline">
                   Set target →

@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { MdCheckCircle, MdCloudDone, MdSystemUpdate, MdWifi, MdWifiOff } from 'react-icons/md'
 import { Button } from '../../components/ui'
+import { brand } from '../../config/brand'
 import { installActions, useInstall } from './installStore'
 
 const subscribe = (cb) => {
@@ -86,7 +87,7 @@ export default function PwaStatus() {
         )}
         {justInstalled && (
           <Toast key="installed" tone="bg-green-50 text-green-800 ring-green-200" icon={MdCheckCircle}>
-            <b>Installed!</b> Open My Workbench from your home screen.
+            <b>Installed!</b> Open {brand.fullName} from your home screen.
           </Toast>
         )}
         {offlineReady && (

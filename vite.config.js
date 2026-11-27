@@ -61,8 +61,8 @@ export default defineConfig({
       includeAssets: ["icon.svg", "favicon-64.png", "apple-touch-icon.png"].map((f) => brand.icons + f),
       manifest: {
         id: "./",
-        name: `My Workbench — ${brand.fullName}`,
-        short_name: "My Workbench",
+        name: brand.fullName,
+        short_name: brand.company || "School Activity",
         description: "Capture school activity visits, photos and AI student counts. Works offline.",
         lang: "en-IN",
         theme_color: "#0f3b84",

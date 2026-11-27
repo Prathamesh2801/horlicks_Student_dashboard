@@ -51,8 +51,8 @@ function AppCard() {
         transition={{ type: 'spring', stiffness: 260, damping: 14 }}
       />
       <div className="min-w-0">
-        <p className="font-bold">My Workbench</p>
-        <p className="text-xs text-gray-500">{brand.fullName}</p>
+        <p className="font-bold">{brand.fullName}</p>
+        <p className="text-xs text-gray-500">School activity app</p>
         <p className="text-xs font-semibold text-green-700">Free · less than 1 MB</p>
       </div>
     </div>
@@ -136,7 +136,7 @@ function IosGuide() {
           Keep <Key>Open as Web App</Key> switched on (if you see it), then tap <Key>Add</Key>.
         </Step>
         <Step n={4} icon={MdHome}>
-          Open <b>My Workbench</b> from your {device} Home Screen.
+          Open <b>{brand.fullName}</b> from your {device} Home Screen.
         </Step>
       </ol>
       <p className="mt-3 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-900 ring-1 ring-amber-100">
@@ -157,7 +157,7 @@ function AndroidSteps() {
         Tap <Key>Install app</Key> or <Key>Add to Home screen</Key>.
       </Step>
       <Step n={3} icon={MdHome}>
-        Tap <Key>Install</Key>, then open <b>My Workbench</b> from your home screen.
+        Tap <Key>Install</Key>, then open <b>{brand.fullName}</b> from your home screen.
       </Step>
     </ol>
   )
@@ -185,9 +185,9 @@ function InAppSteps() {
 }
 
 const TITLES = {
-  prompt: 'Install My Workbench',
+  prompt: `Install ${brand.fullName}`,
   ios: `Install on your ${isIPad ? 'iPad' : 'iPhone'}`,
-  android: 'Install My Workbench',
+  android: `Install ${brand.fullName}`,
   inapp: 'Open in your browser to install',
   'mac-safari': 'Add to your Dock',
 }
