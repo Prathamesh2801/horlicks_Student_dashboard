@@ -59,7 +59,7 @@ export default function UserForm({ onSubmit, onCancel }) {
       />
       <div>
         <p className="mb-1.5 text-sm font-semibold text-gray-800">Role</p>
-        <div role="radiogroup" aria-label="Role" className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 sm:grid-cols-4">
+        <div role="radiogroup" aria-label="Role" className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1">
           {ROLES.map((r) => {
             const Icon = ROLE_ICON[r.value]
             const active = form.role === r.value
@@ -70,7 +70,7 @@ export default function UserForm({ onSubmit, onCancel }) {
                 role="radio"
                 aria-checked={active}
                 onClick={() => setForm((f) => ({ ...f, role: r.value }))}
-                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${active ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-600'}`}
+                className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-2 py-2.5 text-sm font-semibold transition ${active ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-600'}`}
               >
                 <Icon className="size-4" /> {r.label}
               </button>
