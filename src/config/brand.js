@@ -3,6 +3,6 @@
 //   { id: 'horlicks', company: 'Horlicks', fullName: 'Horlicks School Activity' }
 // then rebuild. Assets per brand: src/assets/brand/<id>-logo.svg + <id>-logo-white.svg, and public/brand/<id>/ icons.
 // Only the active brand's files are built and served.
-const active = { id: 'placeholder', company: '', fullName: 'School Activity Programme' }
+const active = { id: 'horlicks', company: 'Horlicks', fullName: 'Horlicks School Activity' }
 
 export const brand = { ...active, icons: `brand/${active.id}/` }
