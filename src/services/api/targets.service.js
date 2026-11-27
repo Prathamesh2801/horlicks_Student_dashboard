@@ -16,7 +16,8 @@ function toProgress(t) {
   return {
     city: t.District ?? null, // the district (the app keeps the name `city`)
     target: t.Target,
-    done: t.Done,
+    done: t.Done, // visits counted towards the target (Approved only, once the server applies the 27 Nov decision)
+    waiting: t.Waiting ?? null, // admins: visits still waiting for review in the period (optional, from the server)
     remaining: t.Remaining ?? Math.max(t.Target - t.Done, 0),
     pct: (t.Percent_Done ?? 0) / 100,
     runRate: t.Run_Rate, // visits per day so far (null before the start date)

@@ -17,13 +17,15 @@ const toReport = (r) => ({
   pages: r.Pages ?? null,
   size: r.File_Size ?? null,
   by: r.Requested_By ?? null,
+  viewAs: r.View_As ?? null, // whose rules the PDF follows: Client (to share) or Admin (internal), v1.25
   error: r.Error ?? null,
   createdAt: r.Created_AT ? r.Created_AT.replace(' ', 'T') : null,
 })
 
 // visitIds in PDF order. Returns the queued report.
-export async function createReport(visitIds) {
-  const data = await api.post(REPORTS, { visit_ids: visitIds.map(Number) })
+// asRole 'Client' (v1.25) = the client's version: approved visits/photos only, no POC or phone, no names.
+export async function createReport(visitIds, asRole) {
+  const data = await api.post(REPORTS, { visit_ids: visitIds.map(Number), ...(asRole ? { as_role: asRole } : {}) })
   return toReport(data.Data)
 }
 

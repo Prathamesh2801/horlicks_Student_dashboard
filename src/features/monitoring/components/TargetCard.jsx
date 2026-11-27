@@ -65,6 +65,9 @@ export default function TargetCard({ data, client, editTo }) {
         <p>
           <span className="text-4xl font-bold">{formatNumber(o.done)}</span>
           <span className="ml-2 font-semibold text-gray-500">of {formatNumber(o.target)} visits</span>
+          {!client && o.waiting > 0 && (
+            <span className="ml-2 text-sm font-semibold text-amber-700">+ {formatNumber(o.waiting)} waiting for review</span>
+          )}
         </p>
         <div className="flex items-center gap-3">
           <Badge tone={STATUS[o.status].tone}>{STATUS[o.status].label}</Badge>

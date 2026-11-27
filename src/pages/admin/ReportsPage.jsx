@@ -88,6 +88,7 @@ export default function ReportsPage() {
   const pageIds = (table.rows ?? []).map((v) => v.id)
   const pageAllTicked = pageIds.length > 0 && pageIds.every((id) => ticked.has(id))
 
+  const [forClient, setForClient] = useState(true) // Client version (to share) or Internal
   const [job, setJob] = useState(null) // { report, error } for the PDF being made
   const reports = useAsync(listReports)
   const busy = Boolean(job && !job.error && job.report?.status !== 'ready' && job.report?.status !== 'failed')
@@ -106,7 +107,13 @@ export default function ReportsPage() {
     }
     reports.reload()
   }
-  const generate = () => follow(() => createReport(chosen.map((v) => v.id))) // in the table's order
+  const generate = () =>
+    follow(() =>
+      createReport(
+        chosen.map((v) => v.id),
+        forClient ? 'Client' : undefined,
+      ),
+    ) // in the table's order
   const retry = (id) => follow(() => retryReport(id))
 
   return (
@@ -254,7 +261,31 @@ export default function ReportsPage() {
             <h2 className="font-bold">2 · Generate PDF</h2>
             <p className="text-xs text-gray-500">
               Summary, then each visit with its details and photos (★ Best first). Up to {REPORT_MAX_VISITS} visits per PDF.
+              {forClient
+                ? ' Client version: ready to share — approved photos only, no POC name or phone, no staff names.'
+                : ' Internal: includes POC name and phone and who approved — don’t send it to the client.'}
             </p>
+          </div>
+          <div
+            role="radiogroup"
+            aria-label="Who is the PDF for"
+            className="inline-grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 text-sm font-semibold"
+          >
+            {[
+              [true, 'Client version'],
+              [false, 'Internal (Admin)'],
+            ].map(([value, text]) => (
+              <button
+                key={text}
+                type="button"
+                role="radio"
+                aria-checked={forClient === value}
+                onClick={() => setForClient(value)}
+                className={`whitespace-nowrap rounded-lg px-3 py-2 transition ${forClient === value ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-600'}`}
+              >
+                {text}
+              </button>
+            ))}
           </div>
           <Button onClick={generate} disabled={!chosen.length || tooMany || busy}>
             <MdPictureAsPdf className="size-5" /> Generate PDF · {formatNumber(chosen.length)} visits
@@ -317,6 +348,11 @@ export default function ReportsPage() {
                   <tr key={r.id}>
                     <td className="px-5 py-3 font-semibold">
                       #{r.id}
+                      {r.viewAs && (
+                        <Badge tone={r.viewAs === 'Admin' ? 'amber' : 'green'} className="ml-2">
+                          {r.viewAs === 'Admin' ? 'Internal' : `${r.viewAs} version`}
+                        </Badge>
+                      )}
                       {r.by && <span className="block text-xs font-normal text-gray-500">by {r.by}</span>}
                     </td>
                     <td className="px-3 py-3">{formatNumber(r.visits)}</td>
@@ -347,8 +383,8 @@ export default function ReportsPage() {
           </div>
         )}
         <p className="px-5 py-3 text-xs text-gray-500">
-          Anyone with a PDF link can open that PDF, so share it only with the right people. Reports made by an admin include the POC name
-          and number and all normal photos.
+          Anyone with a PDF link can open that PDF, so share it only with the right people. Send the client only “Client version” PDFs;
+          “Internal” PDFs include the POC name and phone.
         </p>
       </Card>
     </div>

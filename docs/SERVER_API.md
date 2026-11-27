@@ -1,6 +1,6 @@
 # Server API reference: Horlicks School Tribes API
 
-> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.23.0**; what changed and what's still needed is at the end ("Connected in the app").
+> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.26.0**; what changed and what's still needed is at the end ("Connected in the app").
 > Live, always-current version: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 > (it also has a *Try it* console). If this copy and the live page differ, **the live page wins**: update this file.
 
@@ -457,7 +457,7 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 - [x] ~~Excel / PPT export~~: Excel and CSV are made in the browser; reports are shared as links (no PDF / PPT).
 - [ ] Production: **HTTPS** + public domain for the API (needed for installing the app and for phones on mobile data).
 
-### Connected in the app (server v1.23.0, 27 Nov 2026)
+### Connected in the app (server v1.26.0, 27 Nov 2026)
 
 | Feature | Server | App |
 |---|---|---|
@@ -479,11 +479,10 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 | District replaces City (v1.21) | No `city` on create; `district` always required; lists return `Districts`; filter `district`; targets per `district` (`Districts`, `Districts_With_Target`) | No City on the form (District first); every filter, chart, map, target and export says District. Old city-only visits show "Not set" |
 | Photo location and time (v1.22) | `normal_photos_meta[<key>][]` / `ai_photos_meta[]` JSON `{lat, lng, accuracy, taken_at}` next to each file; photos return `Latitude`, `Longitude`, `Accuracy`, `Taken_AT`. PDF reports print each photo's location and time and include only approved normal photos (all roles) | Sent on every upload; Excel Photos sheet shows each photo's own GPS, accuracy and time ("GPS from: Photo") |
 | Collateral Count (v1.23) | `PUT Admin/visit_count.php` with `collateral_count` and / or `unique_person_count` (one or both); visits return `Collateral_Count`; history rows have `Count` | Admin controls panel (Unique students + Collateral Count, Save, Show changes labelled Students / Collateral); summary card, client visit page, Excel |
+| Client-safe PDF (v1.24–1.25) | New PDF design (v1.24); `POST Report/report.php` with `"as_role": "Client"` from an Admin makes the client's version; reports return `View_As` | Reports page: "Client version" (default, to share) or "Internal (Admin)"; list shows which |
 
 ### Still needed from the server (for this app)
 
 | Feature | Request | Why |
 |---|---|---|
-| **Client-safe PDF made by an Admin** | e.g. `"audience": "Client"` on `POST Report/report.php`: build the PDF as a Client would see it (Approved visits only, approved photos only, no POC / phone) | Since v1.22 the PDF has only approved normal photos for every role, but an admin's PDF still prints every POC name and phone number |
-| **Targets count** | Consider counting only **Approved** visits (today Pending counts too) | The client sees approved visits only, so their numbers and the target can differ |
-| **Bulk approve** (optional) | Accept a list of `visit_id`s in one `PUT` | Approving hundreds sends one request each today |
+| **Targets: Approved visits only** (decided 27 Nov, Option B — not in v1.26) | In `Admin/target.php` (and the dashboard `Targets`), `Done` counts only **Approved** visits (today Pending counts too). Optional for Admins: add `Waiting` (Pending visits in the period) so the admin can see "40 approved · 20 waiting for review" | The client sees only Approved visits, so every number on their target card must match their visit list; progress never drops when a visit is rejected |
