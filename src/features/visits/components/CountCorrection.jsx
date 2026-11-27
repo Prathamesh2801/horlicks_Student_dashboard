@@ -11,7 +11,6 @@ const digits = (v) => v.replace(/\D/g, '').slice(0, 6)
 export default function CountCorrection({ visit }) {
   const [count, setCount] = useState(null) // typed, not saved (null = unchanged)
   const [collateral, setCollateral] = useState(null)
-  const [reason, setReason] = useState('')
   const [history, setHistory] = useState(null)
   const [saving, setSaving] = useState(false)
   const [result, setResult] = useState(null) // 'saved' | error message
@@ -28,11 +27,9 @@ export default function CountCorrection({ visit }) {
       await correctCount(visit.id, {
         count: countChanged ? countText : null,
         collateral: collateralChanged ? collateralText : null,
-        reason: reason.trim(),
       })
       setCount(null)
       setCollateral(null)
-      setReason('')
       setResult('saved')
       if (history) setHistory(await getCountHistory(visit.id).catch(() => history))
     } catch (err) {
@@ -62,13 +59,6 @@ export default function CountCorrection({ visit }) {
           placeholder="e.g. 12"
           value={collateralText}
           onChange={(e) => setCollateral(digits(e.target.value))}
-        />
-        <Input
-          label="Reason (optional)"
-          placeholder="e.g. AI missed children in the back rows"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          maxLength={500}
         />
       </div>
       <div className="flex flex-wrap items-center gap-3">

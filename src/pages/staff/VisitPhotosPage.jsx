@@ -61,7 +61,7 @@ export default function VisitPhotosPage() {
   const [canUpload, setCanUpload] = useState(true) // Admin setting: Upload button (gallery) for headcount photos
   const cameraRef = useRef(null)
   useEffect(() => {
-    getFormSettings().then((r) => setCanUpload(r.uploadButton))
+    getFormSettings().then((r) => setCanUpload(r.settings.upload_button))
   }, [])
   const uploadRef = useRef(null)
 

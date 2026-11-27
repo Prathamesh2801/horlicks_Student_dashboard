@@ -4,7 +4,7 @@ import BottomBar from '../../../components/common/BottomBar'
 import { Button, Card, Input, Select, Spinner } from '../../../components/ui'
 import { useGeolocation } from '../../../hooks/useGeolocation'
 import { CLASS_CATEGORIES, SCHOOL_TYPES } from '../../../constants/visit'
-import { DEFAULT_FORM, getFormSettings } from '../../../services/api/settings.service'
+import { DEFAULT_SETTINGS, getFormSettings } from '../../../services/api/settings.service'
 import { getDistricts } from '../../../services/api/visits.service'
 import { formatCoords, formatTime, todayISO } from '../../../utils/format'
 
@@ -37,7 +37,8 @@ function LocationBox({ geo, onRetry }) {
 }
 
 // Step 1 of a visit: Date, District, Village, UDISE, School name, School type, Class category, POC name + contact,
-// GPS. Lists come from the server (cached for offline use); the Admin's settings hide fields or make them optional.
+// GPS. Lists come from the server (cached for offline use). Admin → Settings turns POC name / Contact number on
+// (shown and required) or off (not asked); every other field is always required.
 export default function VisitDetailsForm({ onSubmit, submitting }) {
   const [form, setForm] = useState({
     date: todayISO(),
@@ -54,13 +55,13 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   const [startedAt] = useState(() => new Date().toISOString())
   const [districts, setDistricts] = useState([])
   const [districtsError, setDistrictsError] = useState(null)
-  const [fields, setFields] = useState(DEFAULT_FORM) // admin settings: which fields are shown / required
+  const [fields, setFields] = useState(DEFAULT_SETTINGS) // admin on / off for poc_name and poc_contact
   const geo = useGeolocation()
   const { locate } = geo
 
   useEffect(() => {
     getDistricts().then(setDistricts, (e) => setDistrictsError(e.message))
-    getFormSettings().then((r) => setFields(r.form))
+    getFormSettings().then((r) => setFields(r.settings))
     locate().catch(() => {})
   }, [locate])
 
@@ -69,8 +70,8 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   const contactValid = /^[6-9]\d{9}$/.test(form.pocContact)
   const udiseOk = /^\d{15}$/.test(form.udise) // UDISE code: 15 digits (client, 27 Nov)
   // Admin settings (server visit_form.php): hidden = not asked; optional = may be empty, but valid if filled.
-  const shown = (name) => fields[name].show
-  const req = (name) => fields[name].show && fields[name].required
+  const shown = (name) => fields[name] ?? true // only poc_name / poc_contact can be off
+  const req = shown
   const ok = (name, filled, valid = true) => !shown(name) || (filled ? valid : !req(name))
   const ready =
     form.date &&

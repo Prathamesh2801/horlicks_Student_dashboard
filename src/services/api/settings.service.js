@@ -1,23 +1,12 @@
 import { api } from './client'
 
-// Server: Admin/visit_form.php (v1.14). GET (Admin, Staff) describes the Create-visit form; PUT (Admin) switches
-// these fields between required, optional and hidden. Staff phones cache it for offline drafts.
+// Server: Admin/visit_form.php. Admin turns three things on / off for the Ground Team:
+// POC name, Contact number (on = shown and required, off = hidden) and the Upload button.
+// Staff phones read it (cached for offline drafts).
 const FORM = '/Admin/visit_form.php'
 const CACHE = 'visit-form-settings'
 
-// Fields an Admin can switch (server names), in form order. District is always required (v1.21).
-export const SWITCHABLE = [
-  ['village', 'Village'],
-  ['udise', 'UDISE code'],
-  ['school_type', 'School type'],
-  ['class_category', 'Class category'],
-  ['poc_name', 'POC name'],
-  ['poc_contact', 'Contact number'],
-  ['start_time', 'Visit start time'],
-]
-
-// Server default: everything shown and required.
-export const DEFAULT_FORM = Object.fromEntries(SWITCHABLE.map(([name]) => [name, { show: true, required: true }]))
+export const DEFAULT_SETTINGS = { poc_name: true, poc_contact: true, upload_button: true }
 
 const cached = () => {
   try {
@@ -27,34 +16,27 @@ const cached = () => {
   }
 }
 
-// { form: { village: { show, required }, ... }, uploadButton, updatedBy, updatedAt }. Offline: the last copy, else the defaults.
-// uploadButton (v1.20): whether the Ground Team sees the Upload (choose from gallery) button. Default shown.
+// { settings: { poc_name, poc_contact, upload_button }, updatedBy, updatedAt }. Offline: the last copy, else all on.
 export async function getFormSettings() {
   try {
     const data = (await api.get(FORM)).Data
-    const byName = Object.fromEntries((data.Fields ?? []).map((f) => [f.Name, f]))
-    const form = Object.fromEntries(
-      SWITCHABLE.map(([name]) => [name, { show: byName[name]?.Show ?? true, required: byName[name]?.Required ?? true }]),
-    )
-    const uploadButton = data.Upload_Button?.Show ?? true
+    const shown = (name) => data.Fields?.find((f) => f.Name === name)?.Show ?? true
+    const settings = { poc_name: shown('poc_name'), poc_contact: shown('poc_contact'), upload_button: data.Upload_Button?.Show ?? true }
     try {
-      localStorage.setItem(CACHE, JSON.stringify({ form, uploadButton }))
+      localStorage.setItem(CACHE, JSON.stringify(settings))
     } catch {
       // storage blocked
     }
-    return { form, uploadButton, updatedBy: data.Updated_By ?? null, updatedAt: data.Updated_AT ? data.Updated_AT.replace(' ', 'T') : null }
+    return { settings, updatedBy: data.Updated_By ?? null, updatedAt: data.Updated_AT ? data.Updated_AT.replace(' ', 'T') : null }
   } catch {
     const c = cached()
-    return { form: c?.form ?? DEFAULT_FORM, uploadButton: c?.uploadButton ?? true, offline: true }
+    return { settings: { ...DEFAULT_SETTINGS, ...(c && 'poc_name' in c ? c : {}) }, offline: true }
   }
 }
 
-// changes: { village: { show, required }, ... } (only what changed; hidden also means not required).
-// uploadButton: true / false, or undefined to leave it as it is.
-export async function saveFormSettings(changes, uploadButton) {
-  const fields = Object.fromEntries(Object.entries(changes).map(([name, f]) => [name, { show: f.show, required: f.show && f.required }]))
+export async function saveFormSettings({ poc_name, poc_contact, upload_button }) {
   await api.put(FORM, {
-    ...(Object.keys(fields).length ? { fields } : {}),
-    ...(uploadButton === undefined ? {} : { upload_button: { show: uploadButton } }),
+    fields: { poc_name: { show: poc_name, required: poc_name }, poc_contact: { show: poc_contact, required: poc_contact } },
+    upload_button: { show: upload_button },
   })
 }
