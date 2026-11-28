@@ -25,11 +25,21 @@ export default function HeadcountSummary({ visit }) {
                 ? `${repeats ? `${formatNumber(visit.facesSeen)} faces in ${photos} · each child counted once` : `From ${photos}`}${failed ? ` · ${failed} could not be counted` : ''}`
                 : 'Counted by the AI when the visit is uploaded'}
           </p>
-          {visit.collateralCount != null && (
-            <p className="mt-2 flex w-fit rounded-lg bg-white/15 px-2.5 py-1 text-sm">
-              Collateral count: <b className="ml-1">{formatNumber(visit.collateralCount)}</b>
-            </p>
+          {(visit.studentCount != null || visit.collateralCount != null) && (
+            <div className="mt-2 flex flex-wrap gap-2 text-sm">
+              {visit.studentCount != null && (
+                <p className="rounded-lg bg-white/15 px-2.5 py-1">
+                  Student count: <b>{formatNumber(visit.studentCount)}</b>
+                </p>
+              )}
+              {visit.collateralCount != null && (
+                <p className="rounded-lg bg-white/15 px-2.5 py-1">
+                  Collateral count: <b>{formatNumber(visit.collateralCount)}</b>
+                </p>
+              )}
+            </div>
           )}
+
           <VisitStatusBadge status={visit.status} className="mt-2" />
         </div>
       </div>

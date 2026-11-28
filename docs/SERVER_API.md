@@ -1,6 +1,6 @@
 # Server API reference: Horlicks School Tribes API
 
-> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.27.0**; what changed and what's still needed is at the end ("Connected in the app").
+> **Saved copy** of the server team's docs, taken **18 Nov 2026** (API **v1.5.0**). The app now uses **v1.28.0**; what changed and what's still needed is at the end ("Connected in the app").
 > Live, always-current version: <http://192.168.1.88/long_term_project/Horlicks_School_Tribes/API/>
 > (it also has a *Try it* console). If this copy and the live page differ, **the live page wins**: update this file.
 
@@ -457,7 +457,7 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 - [x] ~~Excel / PPT export~~: Excel and CSV are made in the browser; reports are shared as links (no PDF / PPT).
 - [ ] Production: **HTTPS** + public domain for the API (needed for installing the app and for phones on mobile data).
 
-### Connected in the app (server v1.27.0, 27 Nov 2026)
+### Connected in the app (server v1.28.0, 28 Nov 2026)
 
 | Feature | Server | App |
 |---|---|---|
@@ -481,7 +481,9 @@ New protected endpoints include `function.php` and call `verifyTokenAndGetData()
 | Collateral Count (v1.23) | `PUT Admin/visit_count.php` with `collateral_count` and / or `unique_person_count` (one or both); visits return `Collateral_Count`; history rows have `Count` | Admin controls panel (Unique students + Collateral Count, Save, Show changes labelled Students / Collateral); summary card, client visit page, Excel |
 | Client-safe PDF (v1.24–1.25) | New PDF design (v1.24); `POST Report/report.php` with `"as_role": "Client"` from an Admin makes the client's version; reports return `View_As` | Reports page: "Client version" (default, to share) or "Internal (Admin)"; list shows which |
 | Targets: Approved only (v1.27) | `Done` (and Remaining, Percent_Done, Run_Rate, Needed_Rate, Projected_Finish_Date, Status) counts only **Approved** visits; `Waiting` = Pending visits in the same district and period (Admins only) | Admin, Client and Auditor see the same target numbers; admin target card shows "+ N waiting for review" |
+| Student count (v1.28) | `student_count` + `collateral_count` on `POST Staff/visit.php`; visits return `Student_Count` (+ `_Updated_By` / `_AT`); `PUT Admin/visit_count.php` accepts `student_count`; history `"Count": "Student_Count"`. Server default: optional | Ground Team form: **Student count** and **Collateral count** after Class category, always required in the app (client decision 28 Nov; no Admin switch). Admin controls: 3 counts (Unique students, Student count, Collateral Count) with history. Summary card and Excel show both |
 
 ### Still needed from the server (for this app)
 
-Nothing at the moment (27 Nov 2026, v1.27.0).
+Nothing at the moment (28 Nov 2026, v1.28.0).
+

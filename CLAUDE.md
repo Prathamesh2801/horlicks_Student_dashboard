@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Horlicks School Activity: project guide
 
 A React PWA for a school-visit campaign in Odisha. The **Ground Team** visits schools and records each visit on their phone: details, geo-tagged photos and class photos. A server AI counts the unique students in the class photos. The **Admin** reviews and approves visits, corrects counts, sets district targets and makes PDF reports. The **Client** and **Auditor** see only approved results.
@@ -5,7 +9,7 @@ A React PWA for a school-visit campaign in Odisha. The **Ground Team** visits sc
 - Frontend: this repo.
 - Backend: a PHP API built by a colleague. The frontend only calls it and never changes it.
 
-Last full update: **27 Nov 2026**, server API **v1.27.0**.
+Last full update: **28 Nov 2026**, server API **v1.28.0**.
 
 ## Commands
 
@@ -33,7 +37,18 @@ Everything is in `src/config/config.js` and `src/config/brand.js`.
 - `brand.js` sets the active brand: `{ id: 'horlicks', company: 'Horlicks', fullName: 'Horlicks School Activity' }`.
   - The app name, logo (`src/assets/brand/<id>-logo*.svg`), icons (`public/brand/<id>/`), PWA manifest name and `<title>` all follow it.
   - A `placeholder` brand also exists.
+  - The Horlicks logo is the "Horlicks + ପୋଷଣ ରୁ ପ୍ରଗତି" (Poshan se Pragati) lockup. Its vector paths were extracted from `raw-assests/Horlicks Oriya envelope High Res.pdf` (28 Nov 2026).
+    - `horlicks-logo.svg` is the navy badge, for light backgrounds.
+    - `horlicks-logo-white.svg` is transparent, for navy backgrounds.
+    - The icons in `public/brand/horlicks/` show the same lockup on navy `#002F85`.
+    - Brand colours: navy `#002F85`, orange `#F26921`. The chevron gradient runs from `#F2AD1C` to `#EC6D25`.
 - `config.appName = brand.fullName`.
+- `vite.config.js` imports both files:
+  - The dev/preview proxy target comes from `BASE_URL_SERVER`. The proxy is always mounted at `/server-api`, even when `API_PROXY` is `''`.
+  - `%BRAND_NAME%` / `%BRAND_ICONS%` in `index.html` are replaced at build time.
+  - Import the logo through the `@brand-logo.svg` / `@brand-logo-white.svg` alias.
+  - Other brands' icon folders are deleted from `dist/`.
+- The PWA uses `registerType: "prompt"`, so a new build only loads after the user taps Reload. This keeps a visit in progress safe. Keep it that way.
 
 ## Server API
 
@@ -49,12 +64,12 @@ Main endpoints, all under `BASE_URL_SERVER`:
 |---|---|
 | `POST auth.php` (login), `POST auth.php?do=logout` | Token login. The session is in localStorage `auth-v2` (`{token, user}`). A Bearer token is sent on every request. |
 | `Staff/visit.php` | **GET** list or one visit. Filters: `district`, `status`, `audit`, `username`, dates, `school_type`; paging with `limit` / `offset`. The response also includes `Options.Districts`, `Districts` counts and `Upload_Button_Show`. |
-| | **POST** (multipart) creates a visit. Fields: `visit_date`, `school_name`, `latitude`, `longitude`, `district`, `village`, `udise`, `school_type`, `class_category` (1/2/3 = classes 1–3/4–6/7–9), `poc_name`, `poc_contact`, `start_time` (HH:MM IST). Photos: `normal_photos[<category_key>][]` with `normal_photos_meta[<key>][]` (JSON `{lat,lng,accuracy,taken_at}`), and `ai_photos[]` with `ai_photos_meta[]`. |
+| | **POST** (multipart) creates a visit. Fields: `visit_date`, `school_name`, `latitude`, `longitude`, `district`, `village`, `udise`, `school_type`, `class_category` (1/2/3 = classes 1–3/4–6/7–9), `student_count`, `collateral_count` (v1.28), `poc_name`, `poc_contact`, `start_time` (HH:MM IST). Photos: `normal_photos[<category_key>][]` with `normal_photos_meta[<key>][]` (JSON `{lat,lng,accuracy,taken_at}`), and `ai_photos[]` with `ai_photos_meta[]`. |
 | | **PUT, Admin:** `status` (Pending/Approved/Rejected), `approved_normal_photo_ids` (the "Show" toggle), `best_normal_photo_ids` (★), `retry_ai_count`. |
 | | **PUT, Auditor only:** `is_audit_pass`, `auditor_comment`. |
 | `Admin/user.php` | Users CRUD. Roles: Staff (UI label "Ground Team"), Admin, Client, Auditor. |
 | `Admin/visit_form.php` | Form settings. **GET** returns `Fields[]` with `Show` / `Required`, plus `Upload_Button.Show`. **PUT** `{fields:{poc_name:{show,required}, poc_contact:{…}}, upload_button:{show}}`. |
-| `Admin/visit_count.php` | **PUT** `unique_person_count` and/or `collateral_count`. **GET** `?visit_id=` returns the change history (with a `Count` field). |
+| `Admin/visit_count.php` | **PUT** `unique_person_count`, `student_count` and/or `collateral_count`. **GET** `?visit_id=` returns the change history (with a `Count` field). |
 | `Admin/target.php` | One visit target per **district**, each with its own start and finish date. GET / POST / PUT / DELETE. Clients and Auditors can only read. `Done` counts **Approved visits only** (v1.27). `Waiting` (pending visits) is sent to Admins only. |
 | `Report/report.php` | **POST** `{visit_ids (max 50), as_role:'Client'}` queues a PDF. **GET** polls the status: Pending / Working / Done / Failed, plus `Pdf_Url`. **PUT** retries. |
 
@@ -74,8 +89,10 @@ src/
   features/        auth (AuthProvider, RequireRole, useAuth), visits (form, photo grid, detail cards), monitoring
                    (KPIs, charts, map, TargetCard, exportRows, useCampaign), users, pwa (install prompt, iOS steps)
   pages/           staff/ (Ground Team phone app), admin/, client/ (Client + Auditor), LoginPage
-  layouts/         StaffLayout (phone), AdminLayout + ClientLayout (sidebar)
-  routes/index.jsx hash router: /login, /staff/*, /admin/*, /client/* (client, auditor, admin-preview)
+  layouts/         StaffLayout (phone), AdminLayout.jsx (sidebar; also exports ClientLayout)
+  routes/index.jsx hash router: /login, /staff/* (visits/new → drafts/:id photos → visits/:id), /admin/*,
+                   /client/* (client, auditor, admin-preview). RequireRole takes app roles in lower case
+                   ('staff' | 'admin' | 'client' | 'auditor'), mapped from the server's Role in auth.service.js
   components/      ui/ (Button, Input with `error` prop, Select, Card, Modal, Badge…), table/ (useTableState, filters,
                    pagination), common/ (ExportMenu, TopBar, BottomBar, Logo)
   hooks/           useAsync, useGeolocation, usePendingChanges
@@ -85,6 +102,7 @@ src/
 
 Patterns to keep:
 - **Data loading:** `useAsync(loadFn)`, `useTableState` for lists (filters in the URL), and `usePendingChanges(reload)` so a screen refreshes after a save elsewhere.
+- **Imports:** `features/*`, `components/ui` and `components/table` each have an `index.js` barrel. Import from the folder, not from deep paths, and add new exports to the barrel.
 - **Services** throw `Error`s with a user-readable message (`client.js` `toError`). Show `err.message` as is.
 - **Styling:** Tailwind 4 with the brand colours (`brand-*`, `accent-*`). Icons come from `react-icons/md`. Motion uses `framer-motion`.
 - **Libraries:** keep them few. The current ones are axios, leaflet / react-leaflet, write-excel-file and framer-motion.
@@ -100,6 +118,7 @@ Patterns to keep:
    - UDISE (digits only, **max 15**; there is no exact-length rule)
    - School name
    - School type and Class category
+   - Student count and Collateral count (always required; server limits 1,00,000 / 10,00,000)
    - POC name and Contact number. These are shown, and required, only when the Admin turns them on. Contact is 10 digits starting 6–9.
    - GPS and start time are captured automatically.
    - Red field errors appear, and a "missing" list sits above Continue.
@@ -109,7 +128,7 @@ Patterns to keep:
      - Each photo is stamped with location, time, school and category, and its GPS meta is sent.
    - **Headcount · AI:** 5–6 class photos.
    - **Upload button:** when the Admin's Settings switch is on, both tabs show **Take photo + Upload** (gallery). Off means camera only.
-   - The Ground Team never enters a manual student count.
+   - Student count and Collateral count are entered on the details form (step 1), not on the photos step.
 3. **Saving and upload:** drafts are saved on the phone, then the upload queue sends them. The AI count runs on the server in the background.
 
 **Admin** (desktop):
@@ -117,7 +136,7 @@ Patterns to keep:
 - **Visits:** filters, Approve, and Excel/CSV export.
 - **Visit detail:**
   - HeadcountSummary
-  - **Admin controls:** Unique students and Collateral Count, with change history and no reason field
+  - **Admin controls:** 3 counts (Unique students, Student count, Collateral Count), with change history and no reason field
   - Review (Approve/Reject, "Set by …")
   - Audit result (read only)
   - Per photo: Show / ★ Best
@@ -140,7 +159,8 @@ Admins can open the client view as "Preview client view".
 
 **Counts**
 - Unique students: the AI count, which the Admin may correct.
-- Collateral Count: entered by the Admin, below Unique students.
+- Student count and Collateral Count: entered by the Ground Team on the visit form (always required, 28 Nov). After upload only the Admin can change them.
+
 
 **Targets**
 - Only **Approved** visits count, for every role, so every role sees the same number.
@@ -154,6 +174,7 @@ Admins can open the client view as "Preview client view".
 **Other**
 - Visits by district chart: the dark bar marks the district (or districts, on a tie) with the most visits.
 - Bulk approve is not needed.
+- `PROJECT_IDEA.md` is the original brief, with status as of API v1.2. Parts of it are out of date: it mentions City, PPT and manual counts. Where it disagrees with this file, this file wins.
 - History of decisions: `docs/client-feedback/DECISIONS.md`, `docs/CLIENT_SCOPE_GAP.md`, `docs/UPDATED_REVISED_PROJECT_SCOPE_CHANGES_v2.pdf`.
 
 ## Design files for the client
@@ -167,7 +188,7 @@ Admins can open the client view as "Preview client view".
 ## Working rules
 
 - **Commits:** commit or push only when the user asks. Pushes go to `main`. Commit messages are short, one line plus details if needed.
-- **Secrets:** never commit or type real credentials or tokens. `raw-assets/` is not for git. `dist/`, `dist.zip` and `dev-dist/` are git-ignored.
+- **Secrets:** never commit or type real credentials or tokens. `raw-assests/` (spelled that way on disk) is not for git. It is untracked but **not** in `.gitignore`, so never `git add .` or `git add -A`. `dist/`, `dist.zip` and `dev-dist/` are git-ignored.
 - **Client-facing wording:** plain and simple English. Say "Ground Team", not "Staff". The client view never says "approved". Say "District", not "City".
 - **Scope:** do client feedback in small parts, one at a time. Frontend-only parts go first, then parts that need the server.
 - **Keep it simple:** reuse what exists and add no new libraries without a reason.

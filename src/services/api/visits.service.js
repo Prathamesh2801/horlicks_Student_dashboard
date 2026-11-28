@@ -15,7 +15,7 @@ const REVIEW_TO = { waiting: 'Pending', approved: 'Approved', rejected: 'Rejecte
 // AI photo: counted later by the server's worker (Pending → Working → Done, or Failed after retries)
 const AI_FROM = { Done: 'done', Failed: 'failed' }
 // Audit (server v1.18): Is_Audit_Pass true / false / null ↔ app approved / rejected / not audited
-const COUNTS = '/Admin/visit_count.php' // admin correction of the unique student count (v1.19)
+const COUNTS = '/Admin/visit_count.php' // admin correction of the counts (v1.19, v1.23, v1.28)
 // Class category: the server stores 1, 2, 3; the client calls them 1–3, 4–6, 7–9.
 const classLabel = (n) => CLASS_CATEGORIES.find((c) => c.value === String(n))?.label ?? (n == null ? null : String(n))
 // Photo category → its upload key ("Sample Distribution" → sample_distribution), as in the server's Options.Photo_Category_Keys
@@ -77,7 +77,8 @@ function toVisit(v) {
     // Main number: each child once, even when they're in several class photos (older visits: face total).
     headcount: v.Unique_Person_Count ?? v.Total_Face_Count ?? null,
     headcountManual: Boolean(v.Unique_Count_Manual), // an admin corrected the AI's number
-    collateralCount: v.Collateral_Count ?? null, // entered by an Admin on the visit page (client feedback 27 Nov)
+    studentCount: v.Student_Count ?? null, // entered by the Ground Team on the visit form (v1.28); Admin can correct
+    collateralCount: v.Collateral_Count ?? null, // entered by the Ground Team on the visit form (v1.28); Admin can correct
     facesSeen: v.Total_Face_Count ?? null, // faces in all AI photos added up, repeats included
     aiFailed: ai.filter((p) => p.ai.status === 'failed').length,
     aiCounting: v.AI_Count_Status === 'Pending' || v.AI_Count_Status === 'Working', // counts arrive in a few minutes
@@ -174,6 +175,8 @@ export async function createVisit(
     schoolName,
     schoolType,
     classCategory,
+    studentCount,
+    collateralCount,
     pocName,
     pocContact,
     lat,
@@ -197,6 +200,8 @@ export async function createVisit(
     udise,
     school_type: schoolType,
     class_category: CLASS_CATEGORIES.find((c) => c.label === classCategory)?.value ?? classCategory, // 1–3 → 1
+    student_count: studentCount, // v1.28: digits as text, so 0 is sent too
+    collateral_count: collateralCount,
     poc_name: pocName,
     poc_contact: pocContact,
     start_time:
@@ -274,11 +279,12 @@ export async function saveAudit(visitId, status, remark) {
   notifyChange()
 }
 
-// ---- unique student count + collateral count (Admin, server v1.19 / v1.23) ----
-// Count: which number changed, Unique_Person_Count or Collateral_Count.
+// ---- unique students, student count + collateral count (Admin, server v1.19 / v1.23 / v1.28) ----
+// Count: which number changed, Unique_Person_Count (AI), Student_Count or Collateral_Count.
+const COUNT_FROM = { Collateral_Count: 'collateral', Student_Count: 'studentCount' }
 const toCountChange = (c) => ({
   id: c.Change_ID,
-  count: c.Count === 'Collateral_Count' ? 'collateral' : 'students',
+  count: COUNT_FROM[c.Count] ?? 'students', // 'students' = unique students (AI)
   from: c.From,
   to: c.To,
   reason: c.Reason ?? '',
@@ -292,12 +298,13 @@ export async function getCountHistory(visitId) {
   return (data.Data?.History ?? []).map(toCountChange)
 }
 
-// Admin control panel: replace the AI's unique student count (the AI worker keeps it; "Count again" replaces it)
-// and / or set the Collateral Count. Pass only what changed (null = leave it).
-export async function correctCount(visitId, { count, collateral, reason }) {
+// Admin control panel: replace the AI's unique student count (the AI worker keeps it; "Count again" replaces it),
+// and / or correct the Ground Team's Student count and Collateral Count. Pass only what changed (null = leave it).
+export async function correctCount(visitId, { count, students, collateral, reason }) {
   await api.put(COUNTS, {
     visit_id: Number(visitId),
     ...(count == null ? {} : { unique_person_count: Number(count) }),
+    ...(students == null ? {} : { student_count: Number(students) }),
     ...(collateral == null ? {} : { collateral_count: Number(collateral) }),
     reason: reason || undefined,
   })

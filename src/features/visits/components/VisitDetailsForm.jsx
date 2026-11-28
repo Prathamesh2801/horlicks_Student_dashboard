@@ -36,9 +36,10 @@ function LocationBox({ geo, onRetry }) {
   )
 }
 
-// Step 1 of a visit: Date, District, Village, UDISE, School name, School type, Class category, POC name + contact,
-// GPS. Lists come from the server (cached for offline use). Admin → Settings turns POC name / Contact number on
-// (shown and required) or off (not asked); every other field is always required.
+// Step 1 of a visit: Date, District, Village, UDISE, School name, School type, Class category, Student count +
+// Collateral count, POC name + contact, GPS. Lists come from the server (cached for offline use). Admin → Settings
+// turns POC name / Contact number on (shown and required) or off (not asked); every other field, including Student
+// count and Collateral count (server v1.28), is always required.
 export default function VisitDetailsForm({ onSubmit, submitting }) {
   const [form, setForm] = useState({
     date: todayISO(),
@@ -48,6 +49,8 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
     schoolName: '',
     schoolType: '',
     classCategory: '',
+    studentCount: '',
+    collateralCount: '',
     pocName: '',
     pocContact: '',
   })
@@ -71,6 +74,9 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
   // Admin settings (server visit_form.php): hidden = not asked; optional = may be empty, but valid if filled.
   const shown = (name) => fields[name] ?? true // only poc_name / poc_contact can be off
   const req = shown
+  // Server limits (v1.28): students 0–100,000, collateral items 0–1,000,000.
+  const studentsValid = Number(form.studentCount) <= 100000
+  const collateralValid = Number(form.collateralCount) <= 1000000
   const ok = (name, filled, valid = true) => !shown(name) || (filled ? valid : !req(name))
   const ready =
     form.date &&
@@ -80,6 +86,8 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
     ok('udise', !!form.udise) &&
     ok('school_type', !!form.schoolType) &&
     ok('class_category', !!form.classCategory) &&
+    ok('student_count', form.studentCount !== '', studentsValid) &&
+    ok('collateral_count', form.collateralCount !== '', collateralValid) &&
     ok('poc_name', !!form.pocName.trim(), form.pocName.trim().length >= 2) &&
     ok('poc_contact', !!form.pocContact, contactValid) &&
     geo.coords
@@ -91,6 +99,8 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
     form.schoolName.trim().length < 2 && 'School name',
     !ok('school_type', !!form.schoolType) && 'School type',
     !ok('class_category', !!form.classCategory) && 'Class category',
+    !ok('student_count', form.studentCount !== '', studentsValid) && 'Student count',
+    !ok('collateral_count', form.collateralCount !== '', collateralValid) && 'Collateral count',
     !ok('poc_name', !!form.pocName.trim(), form.pocName.trim().length >= 2) && 'POC name',
     !ok('poc_contact', !!form.pocContact, contactValid) && 'Contact number',
     !geo.coords && 'Location',
@@ -109,6 +119,8 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
       udise: only('udise', form.udise),
       schoolType: only('school_type', form.schoolType),
       classCategory: only('class_category', form.classCategory),
+      studentCount: form.studentCount,
+      collateralCount: form.collateralCount,
       schoolName: form.schoolName.trim(),
       pocName: only('poc_name', form.pocName.trim()),
       pocContact: only('poc_contact', form.pocContact),
@@ -189,8 +201,32 @@ export default function VisitDetailsForm({ onSubmit, submitting }) {
             )}
           </div>
         )}
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Student count"
+            inputMode="numeric"
+            placeholder="e.g. 120"
+            value={form.studentCount}
+            onChange={digits('studentCount', 6)}
+            autoComplete="off"
+            error={studentsValid ? undefined : 'Up to 1,00,000'}
+            required
+          />
+          <Input
+            label="Collateral count"
+            inputMode="numeric"
+            placeholder="e.g. 40"
+            value={form.collateralCount}
+            onChange={digits('collateralCount', 7)}
+            autoComplete="off"
+            error={collateralValid ? undefined : 'Up to 10,00,000'}
+            required
+
+          />
+        </div>
         {shown('poc_name') && (
           <Input
+
             label={optional('poc_name', 'POC name')}
             value={form.pocName}
             onChange={set('pocName')}

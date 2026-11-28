@@ -1,7 +1,7 @@
 import { idb, keepDataOnDevice } from '../../utils/idb'
 
 // Visits being built on the phone, before they are uploaded. Everything works offline.
-// Draft: { id, username, staffName, date, city, district, village, udise, schoolName, schoolType, classCategory, pocName, pocContact, lat, lng, accuracy, startedAt (form opened), createdAt, photos: [{ id, type, category, lat, lng, accuracy, takenAt }],
+// Draft: { id, username, staffName, date, city, district, village, udise, schoolName, schoolType, classCategory, studentCount, collateralCount, pocName, pocContact, lat, lng, accuracy, startedAt (form opened), createdAt, photos: [{ id, type, category, lat, lng, accuracy, takenAt }],
 //          state: 'draft' | 'queued' (submitted, waiting for internet) | 'failed' (server refused, see error), error }
 // Photo images are stored separately (photos store) so lists stay fast.
 
@@ -29,6 +29,8 @@ export async function createDraft({
   schoolName,
   schoolType,
   classCategory,
+  studentCount,
+  collateralCount,
   pocName,
   pocContact,
   lat,
@@ -49,9 +51,12 @@ export async function createDraft({
     schoolName,
     schoolType,
     classCategory,
+    studentCount,
+    collateralCount,
     pocName,
     pocContact,
     lat,
+
     lng,
     accuracy,
     startedAt,
