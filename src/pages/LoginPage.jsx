@@ -51,7 +51,7 @@ export default function LoginPage() {
         className="relative mx-auto flex w-full max-w-sm flex-col px-5 pt-14 pb-8 sm:pt-20"
       >
         <div className="text-center text-white">
-          <Logo variant="white" className="mx-auto mb-5 h-20 w-auto drop-shadow-sm" />
+          <Logo variant="white" className="mx-auto mb-5 h-28 w-auto drop-shadow-sm" />
           <h1 className="text-3xl font-bold tracking-tight">{config.appName}</h1>
           <p className="mt-1 text-sm text-white/85">School activity app</p>
         </div>
