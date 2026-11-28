@@ -159,7 +159,8 @@ Admins can open the client view as "Preview client view".
 
 **Counts**
 - Unique students: the AI count, which the Admin may correct.
-- Student count and Collateral Count: entered by the Ground Team on the visit form (always required, 28 Nov). After upload only the Admin can change them.
+- Student count and Collateral Count: entered by the Ground Team on the visit form (always required, 28 Nov). After upload only the Admin can change them. Every role sees both, including Client and Auditor on the visit page.
+
 
 
 **Targets**
